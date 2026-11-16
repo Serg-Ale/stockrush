@@ -25,6 +25,7 @@ Itens que **precisam acontecer**, mas ficaram fora da v1 por decisão consciente
 - **Tracing distribuído com OpenTelemetry** atravessando a fila (Tempo ou Jaeger), aproveitando o starter do Boot 4 (a verificar).
 - **Teste de carga com k6**, com resultados publicados no README.
 - **Testes de contrato** entre os serviços (Pact ou Spring Cloud Contract).
+- **Diagramas gerados do código**: ER do banco com SchemaSpy (a partir do Postgres migrado pelo Flyway), diagrama de módulos da `api` com o `Documenter` do Spring Modulith (C4 componente em PlantUML, exige render) e AsyncAPI dos eventos (o binding AMQP não descreve DLX/DLQ). Na v1 o SQL do Flyway documenta o esquema e o diagrama de container cobre a estrutura; o único documento gerado é o OpenAPI do springdoc (#23).
 - **Virtual threads**: avaliar com medição própria (os números que circulam em blogs não têm benchmark).
 
 ## Front-end
