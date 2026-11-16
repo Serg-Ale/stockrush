@@ -1,0 +1,1 @@
+-- Baseline: proves Flyway runs on startup. Domain tables arrive with the tickets that need them.
