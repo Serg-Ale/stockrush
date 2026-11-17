@@ -195,6 +195,20 @@ class OrderCreationTests {
 		assertThat(payload.path("orderId").asLong()).isEqualTo(orderId);
 		assertThat(payload.path("productId").asLong()).isEqualTo(productId);
 		assertThat(payload.path("quantity").asInt()).isEqualTo(3);
+		assertThat(payload.path("paymentToken").asString()).isEqualTo("tok_approve");
+	}
+
+	@Test
+	void paymentTokenIsCarriedInTheEvent() throws Exception {
+		var productId = newProduct(5);
+
+		var response = send("/orders", newUserToken(), UUID.randomUUID().toString(),
+				Map.of("productId", productId, "quantity", 1, "paymentToken", "tok_decline"));
+
+		var orderId = json.readTree(response.body()).path("id").asLong();
+		var payload = jdbc.queryForObject("select payload::text from outbox where aggregate_id = ?", String.class,
+				orderId);
+		assertThat(json.readTree(payload).path("paymentToken").asString()).isEqualTo("tok_decline");
 	}
 
 	@Test

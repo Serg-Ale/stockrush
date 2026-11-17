@@ -28,7 +28,8 @@ class OrderService {
 	 * the same transaction, so there is never a reservation without its event or an event without its reservation.
 	 */
 	@Transactional
-	OrderResponse create(String userEmail, String idempotencyKey, long productId, int quantity) {
+	OrderResponse create(String userEmail, String idempotencyKey, long productId, int quantity,
+			String paymentToken) {
 		var created = jdbc.sql("""
 				insert into orders (user_id, product_id, quantity, status, idempotency_key)
 				select u.id, p.id, :quantity, 'PENDING', :key
@@ -59,11 +60,13 @@ class OrderService {
 		jdbc.sql("""
 				insert into outbox (aggregate_id, type, payload)
 				values (:id, 'order.created',
-				        jsonb_build_object('orderId', :id, 'productId', :productId, 'quantity', :quantity))
+				        jsonb_build_object('orderId', :id, 'productId', :productId, 'quantity', :quantity,
+				                   'paymentToken', :paymentToken))
 				""")
 				.param("id", order.id())
 				.param("productId", order.productId())
 				.param("quantity", order.quantity())
+				.param("paymentToken", paymentToken)
 				.update();
 		return order;
 	}

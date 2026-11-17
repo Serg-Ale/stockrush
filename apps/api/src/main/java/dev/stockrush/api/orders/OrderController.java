@@ -26,10 +26,18 @@ class OrderController {
 	@ResponseStatus(HttpStatus.CREATED)
 	OrderService.OrderResponse create(@RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String idempotencyKey,
 			@Valid @RequestBody CreateOrderRequest request, Authentication authentication) {
-		return orders.create(authentication.getName(), idempotencyKey, request.productId(), request.quantity());
+		return orders.create(authentication.getName(), idempotencyKey, request.productId(), request.quantity(),
+				request.paymentToken());
 	}
 
-	record CreateOrderRequest(@NotNull Long productId, @Min(1) int quantity) {
+	record CreateOrderRequest(@NotNull Long productId, @Min(1) int quantity, @Size(max = 64) String paymentToken) {
+
+		CreateOrderRequest {
+			if (paymentToken == null || paymentToken.isBlank()) {
+				paymentToken = "tok_approve";
+			}
+		}
+
 	}
 
 }
