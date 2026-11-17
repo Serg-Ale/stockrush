@@ -18,12 +18,20 @@ class User {
 
 	private String passwordHash;
 
+	private String role;
+
 	protected User() {
 	}
 
+	/** Self-registration always creates a CLIENTE. */
 	User(String email, String passwordHash) {
+		this(email, passwordHash, "CLIENTE");
+	}
+
+	User(String email, String passwordHash, String role) {
 		this.email = email;
 		this.passwordHash = passwordHash;
+		this.role = role;
 	}
 
 	Long getId() {
@@ -36,6 +44,10 @@ class User {
 
 	String getPasswordHash() {
 		return passwordHash;
+	}
+
+	String getRole() {
+		return role;
 	}
 
 }

@@ -75,6 +75,7 @@ class AuthController {
 		var now = Instant.now();
 		var claims = JwtClaimsSet.builder()
 				.subject(user.getEmail())
+				.claim("role", user.getRole())
 				.issuedAt(now)
 				.expiresAt(now.plus(ttl))
 				.build();
