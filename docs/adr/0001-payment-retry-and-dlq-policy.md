@@ -108,14 +108,14 @@ flowchart LR
         RC["Result consumer<br/>confirms or cancels the order"]
     end
     subgraph rmq["RabbitMQ"]
-        Q["payment.requested<br/>orders waiting for a payment decision<br/>one message per order"]
+        Q["order.created<br/>orders waiting for a payment decision<br/>one message per order"]
         subgraph WQ["wait queues: park a message, no consumer"]
             W1["wait 1 s<br/>after the 1st failure"]
             W2["wait 2 s<br/>after the 2nd failure"]
             W3["wait 4 s<br/>after the 3rd failure"]
         end
         R["payment.result<br/>the answer for each order<br/>APPROVED, DECLINED or EXHAUSTED"]
-        DLQ[("payment.dlq<br/>messages that gave up<br/>kept for a human to read<br/>nobody consumes it, max 1000")]
+        DLQ[("order.created.dlq<br/>messages that gave up<br/>kept for a human to read<br/>nobody consumes it, max 1000")]
     end
     subgraph pay["payment-service"]
         C["Payment consumer<br/>charges the simulated gateway"]
@@ -163,7 +163,7 @@ It waits 3 s in total, ends `CONFIRMED`, and never reaches the DLQ.
 sequenceDiagram
     autonumber
     participant API as api
-    participant Q as payment.requested
+    participant Q as order.created
     participant P as payment-service
     participant W as wait queue
     participant R as payment.result
@@ -173,7 +173,7 @@ sequenceDiagram
     Note over Q: holds: order 42
     Q->>P: t=0 s, attempt 1
     P->>W: gateway says try later, park for 1 s
-    Note over Q,W: payment.requested is empty, wait 1 s holds order 42
+    Note over Q,W: order.created is empty, wait 1 s holds order 42
     W->>Q: t=1 s, time is up
     Q->>P: attempt 2
     P->>W: gateway says try later, park for 2 s
@@ -193,11 +193,11 @@ message stays in the DLQ for a person to read.
 sequenceDiagram
     autonumber
     participant API as api
-    participant Q as payment.requested
+    participant Q as order.created
     participant P as payment-service
     participant W as wait queue
     participant R as payment.result
-    participant D as payment.dlq
+    participant D as order.created.dlq
 
     Note over API,D: Order 43, token tok_dead (fails every attempt)
     API->>Q: order 43 needs payment
