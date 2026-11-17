@@ -2,13 +2,14 @@ package dev.stockrush.api.auth;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,9 +20,13 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@EnableMethodSecurity
 class SecurityConfig {
 
 	@Bean
@@ -33,8 +38,18 @@ class SecurityConfig {
 						.requestMatchers("/auth/**", "/actuator/health/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/products").permitAll()
 						.anyRequest().authenticated())
-				.oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+				.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(roleConverter())))
 				.build();
+	}
+
+	/** Maps the token's {@code role} claim to a ROLE_ authority, so {@code @PreAuthorize("hasRole('ADMIN')")} works. */
+	private static JwtAuthenticationConverter roleConverter() {
+		var converter = new JwtAuthenticationConverter();
+		converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+			var role = jwt.getClaimAsString("role");
+			return role == null ? List.<GrantedAuthority>of() : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+		});
+		return converter;
 	}
 
 	@Bean
