@@ -1,0 +1,17 @@
+{
+  "/auth": {
+    "target": "http://localhost:8080"
+  },
+  "/orders": {
+    "target": "http://localhost:8080"
+  },
+  "/products": {
+    "target": "http://localhost:8080"
+  },
+  "/me": {
+    "target": "http://localhost:8080"
+  },
+  "/v3": {
+    "target": "http://localhost:8080"
+  }
+}
