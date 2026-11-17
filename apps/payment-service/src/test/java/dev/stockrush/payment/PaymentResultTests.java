@@ -1,0 +1,112 @@
+package dev.stockrush.payment;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.json.JsonMapper;
+
+/** Drives the service only through the queues: publishes order.created, observes payment.result. */
+@Import(TestcontainersConfiguration.class)
+@SpringBootTest
+class PaymentResultTests {
+
+	private final JsonMapper json = JsonMapper.builder().build();
+
+	@Autowired
+	RabbitTemplate rabbit;
+
+	@Autowired
+	JdbcTemplate jdbc;
+
+	@Test
+	void approveTokenPublishesApproved() throws Exception {
+		var orderId = newOrderId();
+
+		orderCreated(orderId, "tok_approve");
+
+		assertThat(resultFor(orderId)).isEqualTo("APPROVED");
+	}
+
+	@Test
+	void declineTokenPublishesDeclined() throws Exception {
+		var orderId = newOrderId();
+
+		orderCreated(orderId, "tok_decline");
+
+		assertThat(resultFor(orderId)).isEqualTo("DECLINED");
+	}
+
+	@Test
+	void redeliveredEventGetsTheSameStoredDecision() throws Exception {
+		var orderId = newOrderId();
+		orderCreated(orderId, "tok_decline");
+		assertThat(resultFor(orderId)).isEqualTo("DECLINED");
+
+		orderCreated(orderId, "tok_approve");
+
+		assertThat(resultFor(orderId)).isEqualTo("DECLINED");
+		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, orderId))
+				.isEqualTo(1);
+	}
+
+	@Test
+	void unsupportedTokenMissingTokenAndMalformedMessageProduceNoResult() throws Exception {
+		var unsupported = newOrderId();
+		orderCreated(unsupported, "tok_nope");
+		var missingToken = newOrderId();
+		send(Map.of("orderId", missingToken));
+		rabbit.send("orders", "order.created", raw("not json".getBytes()));
+		var marker = newOrderId();
+		orderCreated(marker, "tok_approve");
+
+		assertThat(resultFor(marker)).isEqualTo("APPROVED");
+		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, unsupported))
+				.isZero();
+		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, missingToken))
+				.isZero();
+	}
+
+	private void orderCreated(long orderId, String token) throws Exception {
+		send(Map.of("orderId", orderId, "productId", 1, "quantity", 1, "paymentToken", token));
+	}
+
+	private void send(Map<String, ?> payload) throws Exception {
+		rabbit.send("orders", "order.created", raw(json.writeValueAsBytes(payload)));
+	}
+
+	private Message raw(byte[] body) {
+		var properties = new MessageProperties();
+		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+		return MessageBuilder.withBody(body).andProperties(properties).build();
+	}
+
+	/** Reads payment.result until the message for this order shows up; the queue is shared by all tests. */
+	private String resultFor(long orderId) throws Exception {
+		var deadline = System.nanoTime() + 10_000_000_000L;
+		while (System.nanoTime() < deadline) {
+			var message = rabbit.receive("payment.result", 500);
+			if (message != null) {
+				var tree = json.readTree(message.getBody());
+				if (tree.path("orderId").asLong() == orderId) {
+					return tree.path("result").asString();
+				}
+			}
+		}
+		return null;
+	}
+
+	private long newOrderId() {
+		return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+	}
+
+}
