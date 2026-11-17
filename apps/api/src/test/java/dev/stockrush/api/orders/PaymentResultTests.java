@@ -6,6 +6,7 @@ import dev.stockrush.api.TestcontainersConfiguration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
@@ -28,6 +29,9 @@ class PaymentResultTests {
 
 	@Autowired
 	RabbitTemplate rabbit;
+
+	@Autowired
+	MeterRegistry meters;
 
 	@Test
 	void approvedResultConfirmsThePendingOrder() throws Exception {
@@ -97,6 +101,48 @@ class PaymentResultTests {
 		assertThat(status(confirmed)).isEqualTo("CONFIRMED");
 		assertThat(jdbc.queryForObject("select available_quantity from products where id = (select product_id from orders where id = ?)",
 				Integer.class, confirmed)).isEqualTo(4);
+	}
+
+	@Test
+	void exhaustedResultCancelsWithPaymentUnavailableAndReturnsStockOnce() throws Exception {
+		var orderId = newOrder("PENDING");
+		var productId = jdbc.queryForObject("select product_id from orders where id = ?", Long.class, orderId);
+
+		result(orderId, "EXHAUSTED");
+		result(orderId, "EXHAUSTED");
+		var marker = newOrder("PENDING");
+		result(marker, "EXHAUSTED");
+
+		await(() -> status(marker).equals("CANCELLED"));
+		assertThat(status(orderId)).isEqualTo("CANCELLED");
+		var reasons = jdbc.queryForMap(
+				"select cancellation_reason, internal_cancellation_reason from orders where id = ?", orderId);
+		assertThat(reasons).containsEntry("cancellation_reason", "PAYMENT_UNAVAILABLE")
+				.containsEntry("internal_cancellation_reason", "EXHAUSTED");
+		assertThat(jdbc.queryForObject("select available_quantity from products where id = ?", Integer.class, productId))
+				.isEqualTo(5);
+	}
+
+	@Test
+	void lateContradictingResultIsDiscardedAndCountedButADuplicateIsNot() throws Exception {
+		var cancelled = newOrder("CANCELLED");
+		var duplicateTarget = newOrder("PENDING");
+		var before = conflicts();
+
+		result(cancelled, "APPROVED");
+		result(duplicateTarget, "DECLINED");
+		result(duplicateTarget, "DECLINED");
+		var marker = newOrder("PENDING");
+		result(marker, "APPROVED");
+
+		await(() -> status(marker).equals("CONFIRMED"));
+		assertThat(status(cancelled)).isEqualTo("CANCELLED");
+		assertThat(conflicts()).isEqualTo(before + 1);
+	}
+
+	private double conflicts() {
+		var counter = meters.find("payment_conflicting_results_total").counter();
+		return counter == null ? 0 : counter.count();
 	}
 
 	private void result(long orderId, String result) throws Exception {

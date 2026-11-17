@@ -24,10 +24,11 @@ class OrderTransitions {
 	}
 
 	/** Cancels a PENDING order and returns its reserved stock in the same statement. Returns whether it applied. */
-	boolean cancel(long orderId, String reason) {
+	boolean cancel(long orderId, String reason, String internalReason) {
 		return jdbc.sql("""
 				with cancelled as (
-				    update orders set status = 'CANCELLED', cancellation_reason = :reason
+				    update orders set status = 'CANCELLED', cancellation_reason = :reason,
+				        internal_cancellation_reason = :internalReason
 				    where id = :id and status = 'PENDING'
 				    returning product_id, quantity
 				)
@@ -36,6 +37,7 @@ class OrderTransitions {
 				""")
 				.param("id", orderId)
 				.param("reason", reason)
+				.param("internalReason", internalReason)
 				.update() == 1;
 	}
 

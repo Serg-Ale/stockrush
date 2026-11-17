@@ -1,5 +1,7 @@
 package dev.stockrush.payment;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -40,6 +42,8 @@ class OrderCreatedListener {
 
 	static final String PAYMENT_RESULT = "payment.result";
 
+	static final String DEAD_LETTER_QUEUE = "order.created.dlq";
+
 	private final JdbcClient jdbc;
 
 	private final RabbitTemplate rabbit;
@@ -79,8 +83,7 @@ class OrderCreatedListener {
 			retryLater(message, attempt);
 		}
 		else {
-			// Out of attempts: EXHAUSTED result and DLQ are the next ticket.
-			throw new AmqpRejectAndDontRequeueException("Attempts exhausted for order " + event.orderId());
+			giveUp(message, event.orderId());
 		}
 	}
 
@@ -96,6 +99,15 @@ class OrderCreatedListener {
 			return Integer.parseInt(name.substring((ORDER_CREATED + ".wait.").length())) + 1;
 		}
 		return 1;
+	}
+
+	/**
+	 * Tells api first, then keeps the original message in the DLQ for inspection. The two publishes are not atomic:
+	 * a crash in between redelivers the message and restarts the attempts (ADR 0001, consequences).
+	 */
+	private void giveUp(Message message, long orderId) {
+		publishResult(orderId, "EXHAUSTED");
+		publish("", DEAD_LETTER_QUEUE, MessageBuilder.fromMessage(message).build());
 	}
 
 	/** Parks the message in the wait queue for this attempt; its TTL then dead-letters it back to the main queue. */
@@ -128,6 +140,7 @@ class OrderCreatedListener {
 			case "tok_approve" -> "APPROVED";
 			case "tok_decline" -> "DECLINED";
 			case "tok_flaky" -> attempt <= 2 ? null : "APPROVED";
+			case "tok_dead" -> null;
 			default -> throw new AmqpRejectAndDontRequeueException("Unsupported payment token: " + token);
 		};
 		if (result == null) {
@@ -195,6 +208,20 @@ class OrderCreatedListener {
 					.build());
 		}
 		return new Declarables(queues);
+	}
+
+	/** Inspection only: nobody consumes it, and it keeps at most 1000 messages (the oldest are dropped). */
+	@Bean
+	Queue deadLetterQueue() {
+		return QueueBuilder.durable(DEAD_LETTER_QUEUE).maxLength(1000).build();
+	}
+
+	@Bean
+	MeterBinder deadLetterDepth(RabbitTemplate rabbit) {
+		return registry -> Gauge
+				.builder("payment_dlq_depth", () -> rabbit.execute(channel -> channel.messageCount(DEAD_LETTER_QUEUE)))
+				.description("Messages waiting in the payment dead-letter queue")
+				.register(registry);
 	}
 
 	@Bean

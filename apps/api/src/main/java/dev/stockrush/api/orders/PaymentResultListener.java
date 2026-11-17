@@ -1,5 +1,7 @@
 package dev.stockrush.api.orders;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -11,6 +13,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -30,11 +33,19 @@ class PaymentResultListener {
 
 	private final OrderTransitions transitions;
 
+	private final JdbcClient jdbc;
+
 	private final JsonMapper json;
 
-	PaymentResultListener(OrderTransitions transitions, JsonMapper json) {
+	private final Counter conflicts;
+
+	PaymentResultListener(OrderTransitions transitions, JdbcClient jdbc, JsonMapper json, MeterRegistry meters) {
 		this.transitions = transitions;
+		this.jdbc = jdbc;
 		this.json = json;
+		this.conflicts = Counter.builder("payment_conflicting_results_total")
+				.description("Payment results discarded because the order was already final with a different outcome")
+				.register(meters);
 	}
 
 	@RabbitListener(queues = PAYMENT_RESULT)
@@ -51,16 +62,29 @@ class PaymentResultListener {
 		}
 		var applied = switch (result) {
 			case "APPROVED" -> transitions.confirm(orderId);
-			case "DECLINED" -> transitions.cancel(orderId, "PAYMENT_DECLINED");
-			default -> {
-				// EXHAUSTED cancels with PAYMENT_UNAVAILABLE: a later ticket.
-				log.warn("Ignoring unsupported payment result {} for order {}", result, orderId);
-				yield true;
-			}
+			case "DECLINED" -> transitions.cancel(orderId, "PAYMENT_DECLINED", "DECLINED");
+			case "EXHAUSTED" -> transitions.cancel(orderId, "PAYMENT_UNAVAILABLE", "EXHAUSTED");
+			default -> throw new AmqpRejectAndDontRequeueException("Unknown payment result: " + result);
 		};
 		if (!applied) {
-			log.info("Payment result {} for order {} discarded: order is not PENDING", result, orderId);
+			discard(orderId, result);
 		}
+	}
+
+	/**
+	 * First result wins. A repeat of the result that already produced the final state is just a duplicate; a result
+	 * that contradicts it is logged and counted, and the order stays as it is.
+	 */
+	private void discard(long orderId, String result) {
+		var status = jdbc.sql("select status from orders where id = :id").param("id", orderId)
+				.query(String.class).optional().orElse("MISSING");
+		var consistent = status.equals(result.equals("APPROVED") ? "CONFIRMED" : "CANCELLED");
+		if (consistent) {
+			log.info("Duplicate payment result {} for order {} ignored", result, orderId);
+			return;
+		}
+		log.warn("Conflicting payment result {} for order {} discarded: order is already {}", result, orderId, status);
+		conflicts.increment();
 	}
 
 	@Bean

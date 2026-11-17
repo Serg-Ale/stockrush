@@ -105,6 +105,17 @@ class TwoServiceFlowTests {
 		assertThat(stock(productId)).isEqualTo(5);
 	}
 
+	@Test
+	void exhaustedPaymentCancelsTheOrderAndReturnsTheStockOnce() throws Exception {
+		var productId = newProduct();
+
+		assertThat(placeAndWait(productId, "tok_dead")).isEqualTo("CANCELLED");
+
+		assertThat(stock(productId)).isEqualTo(5);
+		assertThat(jdbc.queryForObject("select cancellation_reason from orders where product_id = ?", String.class,
+				productId)).isEqualTo("PAYMENT_UNAVAILABLE");
+	}
+
 	private long newProduct() {
 		return jdbc.queryForObject("insert into products (name, available_quantity) values (?, 5) returning id",
 				Long.class, "e2e-" + UUID.randomUUID());
