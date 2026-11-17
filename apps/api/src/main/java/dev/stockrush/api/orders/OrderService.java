@@ -24,7 +24,8 @@ class OrderService {
 	 * Creates the PENDING order and reserves its stock in one transaction. The order row is inserted first, keyed
 	 * by (user, idempotency key): a concurrent or repeated request with the same key conflicts on the unique index
 	 * and replays the stored order instead of reserving again. The stock decrement is a single conditional UPDATE,
-	 * so concurrent orders can never take more units than exist.
+	 * so concurrent orders can never take more units than exist. The {@code order.created} outbox row is written in
+	 * the same transaction, so there is never a reservation without its event or an event without its reservation.
 	 */
 	@Transactional
 	OrderResponse create(String userEmail, String idempotencyKey, long productId, int quantity) {
@@ -54,7 +55,17 @@ class OrderService {
 		if (reserved == 0) {
 			throw rejection(productId);
 		}
-		return created.get();
+		var order = created.get();
+		jdbc.sql("""
+				insert into outbox (aggregate_id, type, payload)
+				values (:id, 'order.created',
+				        jsonb_build_object('orderId', :id, 'productId', :productId, 'quantity', :quantity))
+				""")
+				.param("id", order.id())
+				.param("productId", order.productId())
+				.param("quantity", order.quantity())
+				.update();
+		return order;
 	}
 
 	private OrderResponse replay(String userEmail, String idempotencyKey, long productId, int quantity) {
