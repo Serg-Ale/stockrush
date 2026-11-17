@@ -4,6 +4,7 @@
 [![payment-service CI](https://github.com/Serg-Ale/stockrush/actions/workflows/payment-service-ci.yml/badge.svg)](https://github.com/Serg-Ale/stockrush/actions/workflows/payment-service-ci.yml)
 ![Java 25](https://img.shields.io/badge/Java-25-437291)
 ![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4-6DB33F)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Status](https://img.shields.io/badge/status-in%20development-orange)
 
 **An order and payment platform with limited stock, built to answer one question: what happens when many customers fight for the last units?**
@@ -109,3 +110,7 @@ Java 25 · Spring Boot 4 · PostgreSQL · Flyway · RabbitMQ · Testcontainers �
 ## How the work is organized
 
 Decisions are written down before and after the code: a spec (#1), tracer-bullet tickets with acceptance criteria and blockers, one pull request per ticket, and ADRs that cite the evidence (for example the 200×50 test result). The terms used in code and docs are defined in [CONTEXT.md](CONTEXT.md).
+
+## License
+
+[MIT](LICENSE)
