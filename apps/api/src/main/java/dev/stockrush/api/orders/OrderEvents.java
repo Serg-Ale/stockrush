@@ -10,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -54,6 +55,23 @@ class OrderEvents {
 			remove.run();
 		}
 		return emitter;
+	}
+
+	/**
+	 * A comment line on every open stream. It keeps proxies from closing an idle connection, and lets the client tell
+	 * a quiet stream from a dead one (a connection that died without a clean close, such as after an api restart behind
+	 * a proxy, is otherwise indistinguishable from silence).
+	 */
+	@Scheduled(fixedDelayString = "${app.sse.heartbeat}")
+	void heartbeat() {
+		streams.values().forEach(emitters -> emitters.forEach(emitter -> {
+			try {
+				emitter.send(SseEmitter.event().comment("keepalive"));
+			}
+			catch (IOException | IllegalStateException e) {
+				emitter.completeWithError(e);
+			}
+		}));
 	}
 
 	/** Called after a transition committed: sends the order's new state to its owner's streams, if any. */

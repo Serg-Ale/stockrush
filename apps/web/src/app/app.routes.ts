@@ -17,6 +17,11 @@ export const routes: Routes = [
         title: 'Catálogo — Stockrush',
         loadComponent: () => import('./pages/catalog/catalog').then((m) => m.Catalog),
       },
+      {
+        path: 'pedidos',
+        title: 'Pedidos — Stockrush',
+        loadComponent: () => import('./pages/orders/orders').then((m) => m.Orders),
+      },
       { path: '', pathMatch: 'full', redirectTo: 'catalogo' },
     ],
   },

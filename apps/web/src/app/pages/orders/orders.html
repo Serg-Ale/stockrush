@@ -1,0 +1,34 @@
+<div class="heading">
+  <h1>Meus pedidos</h1>
+  @switch (connection()) {
+    @case ('live') {
+      <span class="connection live" role="status">● Ao vivo</span>
+    }
+    @case ('reconnecting') {
+      <span class="connection" role="status">Reconectando…</span>
+    }
+    @default {
+      <span class="connection" role="status">Conectando…</span>
+    }
+  }
+</div>
+@if (connection() === 'connecting') {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (rows().length === 0 && connection() === 'live') {
+  <p>Você ainda não fez nenhum pedido.</p>
+}
+<ul class="orders">
+  @for (row of rows(); track row.order.id) {
+    <li [attr.data-status]="row.order.status">
+      <div class="info">
+        <strong>Pedido #{{ row.order.id }}</strong>
+        <span>{{ row.product }} × {{ row.order.quantity }}</span>
+        @if (row.reason) {
+          <span class="reason">{{ row.reason }}</span>
+        }
+      </div>
+      <span class="status" [class]="'status ' + row.order.status.toLowerCase()">{{ row.status }}</span>
+    </li>
+  }
+</ul>
