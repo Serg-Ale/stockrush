@@ -127,6 +127,18 @@ class PaymentResultTests {
 	}
 
 	@Test
+	void temporaryFailuresAreCountedAsRetries() throws Exception {
+		var retries = meters.get("payment_retries_total").counter();
+		var before = retries.count();
+		var orderId = newOrderId();
+
+		orderCreated(orderId, "tok_flaky");
+
+		assertThat(resultFor(orderId)).isEqualTo("APPROVED");
+		assertThat(retries.count()).isEqualTo(before + 2);
+	}
+
+	@Test
 	void deadLetterDepthIsExportedAsAMetric() throws Exception {
 		admin.purgeQueue("order.created.dlq", true);
 		var orderId = newOrderId();

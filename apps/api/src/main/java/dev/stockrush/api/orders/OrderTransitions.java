@@ -1,5 +1,8 @@
 package dev.stockrush.api.orders;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -10,13 +13,21 @@ import org.springframework.stereotype.Component;
 @Component
 class OrderTransitions {
 
+	/** The internal reasons of ADR 0001; the customer-facing enum folds them into three values. */
+	private static final List<String> INTERNAL_REASONS = List.of("DECLINED", "EXHAUSTED", "INVALID_MESSAGE", "TIMEOUT");
+
 	private final JdbcClient jdbc;
 
 	private final OrderEvents events;
 
-	OrderTransitions(JdbcClient jdbc, OrderEvents events) {
+	private final MeterRegistry meters;
+
+	OrderTransitions(JdbcClient jdbc, OrderEvents events, MeterRegistry meters) {
 		this.jdbc = jdbc;
 		this.events = events;
+		this.meters = meters;
+		// Registered up front so the scrape shows every reason from the start, at zero.
+		INTERNAL_REASONS.forEach(this::cancellations);
 	}
 
 	/** Returns whether the order was PENDING and is now CONFIRMED. */
@@ -45,7 +56,17 @@ class OrderTransitions {
 				.param("internalReason", internalReason)
 				.update() == 1;
 		notifyIf(applied, orderId);
+		if (applied) {
+			cancellations(internalReason).increment();
+		}
 		return applied;
+	}
+
+	private Counter cancellations(String internalReason) {
+		return Counter.builder("orders_cancelled_total")
+				.description("Orders cancelled, by internal reason")
+				.tag("reason", internalReason)
+				.register(meters);
 	}
 
 	/** Each statement commits on its own, so the stream only ever sees committed states. */

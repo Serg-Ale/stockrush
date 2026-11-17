@@ -35,7 +35,7 @@ class SecurityConfig {
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/auth/**", "/actuator/health/**").permitAll()
+						.requestMatchers("/auth/**", "/actuator/health/**", "/actuator/prometheus").permitAll()
 						.requestMatchers(HttpMethod.GET, "/products").permitAll()
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(roleConverter())))
