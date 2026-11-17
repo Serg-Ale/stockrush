@@ -76,6 +76,33 @@ class PaymentResultTests {
 				.isZero();
 	}
 
+	@Test
+	void flakyTokenIsApprovedOnTheThirdAttemptAfterTheConfiguredBackoff() throws Exception {
+		var orderId = newOrderId();
+		var start = System.nanoTime();
+
+		orderCreated(orderId, "tok_flaky");
+
+		assertThat(resultFor(orderId)).isEqualTo("APPROVED");
+		var elapsedMs = (System.nanoTime() - start) / 1_000_000;
+		// two failures wait 0.3 s and 0.6 s before the approved third attempt
+		assertThat(elapsedMs).isBetween(900L, 4_000L);
+	}
+
+	@Test
+	void aRetryingMessageDoesNotBlockOtherOrders() throws Exception {
+		var flaky = newOrderId();
+		var quick = newOrderId();
+		orderCreated(flaky, "tok_flaky");
+		orderCreated(quick, "tok_approve");
+		var start = System.nanoTime();
+
+		assertThat(resultFor(quick)).isEqualTo("APPROVED");
+
+		assertThat((System.nanoTime() - start) / 1_000_000).isLessThan(900L);
+		assertThat(resultFor(flaky)).isEqualTo("APPROVED");
+	}
+
 	private void orderCreated(long orderId, String token) throws Exception {
 		send(Map.of("orderId", orderId, "productId", 1, "quantity", 1, "paymentToken", token));
 	}

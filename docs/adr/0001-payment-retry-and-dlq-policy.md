@@ -34,8 +34,13 @@ ends an order.
    case needs a refund or reconciliation, which is out of scope.
 4. **Retry mechanism.** Wait queues with a per-message TTL, one per backoff
    step, each dead-lettering back to the main queue. Nothing blocks a consumer
-   thread. The attempt count travels in the message's `x-death` header, so
-   `payment-service` keeps no retry state in its database.
+   thread. The attempt number comes from the broker's own header, so
+   `payment-service` keeps no retry state in its database. Implementation note
+   (2026-11-17): RabbitMQ 4 drops a client-set `x-death` when the consumer
+   republishes the message to the next wait queue, so the accumulated `x-death`
+   count is always 1. The service reads `x-last-death-queue` instead: the wait
+   queue the message just came back from (`order.created.wait.N`) means attempt
+   N + 1. The main queue is `order.created`, not `payment.requested`.
 5. **Numbers.** 4 attempts in total (the original plus 3 retries), with
    steps of 1 s, 2 s and 4 s: at most about 7 s before cancellation. The
    steps and the attempt limit are Spring properties with these defaults,
