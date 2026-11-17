@@ -2,10 +2,12 @@ package dev.stockrush.payment;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -46,19 +48,64 @@ class OrderCreatedListener {
 
 	private final Duration confirmTimeout;
 
+	private final List<Duration> retrySteps;
+
+	private final int maxAttempts;
+
 	OrderCreatedListener(JdbcClient jdbc, RabbitTemplate rabbit, JsonMapper json,
-			@Value("${app.payment.confirm-timeout:PT5S}") Duration confirmTimeout) {
+			@Value("${app.payment.confirm-timeout:PT5S}") Duration confirmTimeout,
+			@Value("${app.payment.retry.steps:PT1S,PT2S,PT4S}") List<Duration> retrySteps,
+			@Value("${app.payment.retry.max-attempts:4}") int maxAttempts) {
+		if (retrySteps.size() < maxAttempts - 1) {
+			throw new IllegalArgumentException("Need one retry step per retry: " + (maxAttempts - 1));
+		}
 		this.jdbc = jdbc;
 		this.rabbit = rabbit;
 		this.json = json;
 		this.confirmTimeout = confirmTimeout;
+		this.retrySteps = retrySteps;
+		this.maxAttempts = maxAttempts;
 	}
 
 	@RabbitListener(queues = ORDER_CREATED)
 	void onOrderCreated(Message message) {
 		var event = parse(message);
-		var result = decide(event.orderId(), event.paymentToken());
-		publish(event.orderId(), result);
+		var attempt = attempt(message);
+		var result = decide(event.orderId(), event.paymentToken(), attempt);
+		if (result != null) {
+			publishResult(event.orderId(), result);
+		}
+		else if (attempt < maxAttempts) {
+			retryLater(message, attempt);
+		}
+		else {
+			// Out of attempts: EXHAUSTED result and DLQ are the next ticket.
+			throw new AmqpRejectAndDontRequeueException("Attempts exhausted for order " + event.orderId());
+		}
+	}
+
+	/**
+	 * 1 for the first delivery; after a wait queue's TTL sent the message back, one more than that queue's step.
+	 * The broker stamps {@code x-last-death-queue} on the message when it dead-letters it, so no retry state is kept
+	 * in the database. (The accumulated {@code x-death} count cannot be used: the broker drops that header when a
+	 * client republishes the message, which is how a message reaches the next wait queue.)
+	 */
+	private int attempt(Message message) {
+		var queue = message.getMessageProperties().getHeader("x-last-death-queue");
+		if (queue instanceof String name && name.startsWith(ORDER_CREATED + ".wait.")) {
+			return Integer.parseInt(name.substring((ORDER_CREATED + ".wait.").length())) + 1;
+		}
+		return 1;
+	}
+
+	/** Parks the message in the wait queue for this attempt; its TTL then dead-letters it back to the main queue. */
+	private void retryLater(Message message, int attempt) {
+		var copy = MessageBuilder.fromMessage(message).build();
+		publish("", waitQueue(attempt), copy);
+	}
+
+	private static String waitQueue(int attempt) {
+		return ORDER_CREATED + ".wait." + attempt;
 	}
 
 	private OrderCreated parse(Message message) {
@@ -72,13 +119,20 @@ class OrderCreatedListener {
 		}
 	}
 
-	/** Stores the decision the first time an order is seen and returns the stored one afterwards. */
-	private String decide(long orderId, String token) {
+	/**
+	 * Stores the decision the first time an order is seen and returns the stored one afterwards. Returns null for
+	 * a temporary failure, which stores nothing.
+	 */
+	private String decide(long orderId, String token, int attempt) {
 		var result = switch (token) {
 			case "tok_approve" -> "APPROVED";
 			case "tok_decline" -> "DECLINED";
+			case "tok_flaky" -> attempt <= 2 ? null : "APPROVED";
 			default -> throw new AmqpRejectAndDontRequeueException("Unsupported payment token: " + token);
 		};
+		if (result == null) {
+			return null;
+		}
 		jdbc.sql("insert into payments (order_id, token, result) values (:id, :token, :result) "
 				+ "on conflict (order_id) do nothing")
 				.param("id", orderId)
@@ -91,7 +145,7 @@ class OrderCreatedListener {
 				.single();
 	}
 
-	private void publish(long orderId, String result) {
+	private void publishResult(long orderId, String result) {
 		var properties = new MessageProperties();
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
@@ -100,8 +154,12 @@ class OrderCreatedListener {
 						.getBytes(StandardCharsets.UTF_8))
 				.andProperties(properties)
 				.build();
+		publish(PAYMENTS_EXCHANGE, PAYMENT_RESULT, message);
+	}
+
+	private void publish(String exchange, String routingKey, Message message) {
 		rabbit.invoke(operations -> {
-			operations.send(PAYMENTS_EXCHANGE, PAYMENT_RESULT, message);
+			operations.send(exchange, routingKey, message);
 			operations.waitForConfirmsOrDie(confirmTimeout.toMillis());
 			return null;
 		});
@@ -123,6 +181,20 @@ class OrderCreatedListener {
 	@Bean
 	Binding orderCreatedBinding(Queue orderCreatedQueue, DirectExchange ordersExchange) {
 		return BindingBuilder.bind(orderCreatedQueue).to(ordersExchange).with(ORDER_CREATED);
+	}
+
+	/** One wait queue per backoff step: no consumer, messages expire after the step and return to the main queue. */
+	@Bean
+	Declarables retryWaitQueues(@Value("${app.payment.retry.steps:PT1S,PT2S,PT4S}") List<Duration> steps) {
+		var queues = new java.util.ArrayList<org.springframework.amqp.core.Declarable>();
+		for (var i = 0; i < steps.size(); i++) {
+			queues.add(QueueBuilder.durable(waitQueue(i + 1))
+					.ttl((int) steps.get(i).toMillis())
+					.deadLetterExchange("")
+					.deadLetterRoutingKey(ORDER_CREATED)
+					.build());
+		}
+		return new Declarables(queues);
 	}
 
 	@Bean
