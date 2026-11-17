@@ -130,6 +130,10 @@ class OrderService {
 		return new ErrorResponseException(status, ProblemDetail.forStatusAndDetail(status, detail), null);
 	}
 
+	/** What a stream client needs when an order changes state. */
+	record OrderStatus(long orderId, String status, String cancellationReason) {
+	}
+
 	record OrderResponse(long id, long productId, int quantity, String status, String cancellationReason) {
 	}
 
