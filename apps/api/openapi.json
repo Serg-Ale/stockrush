@@ -37,6 +37,39 @@
         "required" : [ "email", "password" ],
         "type" : "object"
       },
+      "DemoRaceResult" : {
+        "properties" : {
+          "buyers" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rejected" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sold" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "stockAfter" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "stockBefore" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "Me" : {
         "properties" : {
           "email" : {
@@ -84,6 +117,32 @@
         },
         "type" : "object"
       },
+      "RaceRequest" : {
+        "properties" : {
+          "buyers" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "paymentToken" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "stock" : {
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
       "RegisterResponse" : {
         "properties" : {
           "email" : {
@@ -120,6 +179,37 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/admin/race" : {
+      "post" : {
+        "operationId" : "runDemoRace",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RaceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DemoRaceResult"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "bearer" : [ ]
+        } ],
+        "tags" : [ "demo-race-controller" ]
+      }
+    },
     "/auth/login" : {
       "post" : {
         "operationId" : "login",

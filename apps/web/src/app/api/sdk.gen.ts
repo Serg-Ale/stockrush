@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateOrderData, CreateOrderResponses, GetOrderData, GetOrderResponses, ListOrdersData, ListOrdersResponses, ListProductsData, ListProductsResponses, LoginData, LoginResponses, MeData, MeResponses, RegisterData, RegisterResponses, StreamOrdersData, StreamOrdersResponse, StreamOrdersResponses } from './types.gen';
+import type { CreateOrderData, CreateOrderResponses, GetOrderData, GetOrderResponses, ListOrdersData, ListOrdersResponses, ListProductsData, ListProductsResponses, LoginData, LoginResponses, MeData, MeResponses, RegisterData, RegisterResponses, RunDemoRaceData, RunDemoRaceResponses, StreamOrdersData, StreamOrdersResponse, StreamOrdersResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,16 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+export const runDemoRace = <ThrowOnError extends boolean = false>(options: Options<RunDemoRaceData, ThrowOnError>): RequestResult<RunDemoRaceResponses, unknown, ThrowOnError> => (options.client ?? client).post<RunDemoRaceResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/admin/race',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 export const login = <ThrowOnError extends boolean = false>(options: Options<LoginData, ThrowOnError>): RequestResult<LoginResponses, unknown, ThrowOnError> => (options.client ?? client).post<LoginResponses, unknown, ThrowOnError>({
     url: '/auth/login',
