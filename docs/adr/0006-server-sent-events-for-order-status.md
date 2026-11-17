@@ -31,6 +31,10 @@ changes state, its owner's open streams receive an `order-status` event with
   client reads the stream with `fetch` (through RxJS) and sends the header.
 - **No replay.** A client that reconnects reads the current state with
   `GET /orders` and then listens again.
+- **Keep-alive.** The server sends a comment line every 15 s. A connection
+  that dies without a clean close (an api restart behind a proxy, for
+  example) looks like silence to the browser, so the client reopens a stream
+  that stays silent for 45 s, with backoff from 1 s to 15 s.
 
 ## Alternatives
 
