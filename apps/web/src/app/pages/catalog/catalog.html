@@ -1,0 +1,14 @@
+<h1>Catálogo</h1>
+@if (loading()) {
+  <mat-progress-bar mode="indeterminate" />
+} @else if (failed()) {
+  <p class="error" role="alert">Não foi possível carregar o catálogo. Recarregue a página.</p>
+} @else if (products().length === 0) {
+  <p>Nenhum produto disponível no momento.</p>
+} @else {
+  <div class="grid">
+    @for (product of products(); track product.id) {
+      <app-product-card [product]="product" (stockChanged)="load()" />
+    }
+  </div>
+}

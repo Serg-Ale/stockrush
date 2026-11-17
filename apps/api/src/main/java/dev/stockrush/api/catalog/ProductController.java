@@ -1,5 +1,6 @@
 package dev.stockrush.api.catalog;
 
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +14,7 @@ class ProductController {
 		this.products = products;
 	}
 
+	@Operation(operationId = "listProducts")
 	@GetMapping("/products")
 	List<ProductResponse> list() {
 		return products.findAllByOrderByNameAsc().stream()

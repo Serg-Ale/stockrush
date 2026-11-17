@@ -115,7 +115,7 @@ cd apps/web && npm ci && npm run generate:api
 
 ## Web app
 
-Angular 22 with Angular Material (Material 3 theme), Portuguese UI, signals and Vitest. Sign-up, login and the auth guard work against the api; the catalog page behind the guard is a placeholder until its ticket. With the api running on port 8080:
+Angular 22 with Angular Material (Material 3 theme), Portuguese UI, signals and Vitest. Sign-up, login, the auth guard, the product catalog and order creation (with an `Idempotency-Key`) work against the api; the live order list is the next ticket. With the api running on port 8080:
 
 ```bash
 cd apps/web && npm ci && npm start

@@ -1,5 +1,6 @@
 package dev.stockrush.api.orders;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,6 +33,7 @@ class OrderController {
 		this.events = events;
 	}
 
+	@Operation(operationId = "createOrder")
 	@PostMapping("/orders")
 	@ResponseStatus(HttpStatus.CREATED)
 	OrderService.OrderResponse create(@RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String idempotencyKey,
@@ -40,17 +42,20 @@ class OrderController {
 				request.paymentToken());
 	}
 
+	@Operation(operationId = "listOrders")
 	@GetMapping("/orders")
 	List<OrderService.OrderResponse> list(Authentication authentication) {
 		return orders.list(authentication.getName());
 	}
 
 	/** Server-sent events: one {@code order-status} event per status change of the caller's orders. */
+	@Operation(operationId = "streamOrders")
 	@GetMapping(path = "/orders/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 	SseEmitter stream(Authentication authentication) {
 		return events.subscribe(authentication.getName());
 	}
 
+	@Operation(operationId = "getOrder")
 	@GetMapping("/orders/{id}")
 	OrderService.OrderResponse get(@PathVariable long id, Authentication authentication) {
 		return orders.get(authentication.getName(), id);
