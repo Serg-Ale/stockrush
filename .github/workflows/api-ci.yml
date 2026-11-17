@@ -17,5 +17,7 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+      - name: Build payment-service jar for the two-service E2E test
+        run: ./mvnw -B -f ../payment-service/pom.xml package -DskipTests
       - name: Build and test
         run: ./mvnw -B verify
