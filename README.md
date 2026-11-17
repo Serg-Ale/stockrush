@@ -99,6 +99,20 @@ The first command also builds the payment-service jar. The `api` suite includes 
 
 No JDK 25 locally? Run the same Maven goals inside the `maven:3-eclipse-temurin-25` image with the Docker socket mounted.
 
+## API contract and web client
+
+The api publishes its OpenAPI document at `/v3/api-docs`, generated from the controllers. A snapshot is committed as `apps/api/openapi.json`, and `OpenApiContractTests` fails when the running api no longer matches it. The Angular client in `apps/web/src/app/api` is generated from that snapshot and committed; the `web-ci` workflow regenerates it and fails on any difference.
+
+After changing a controller:
+
+```bash
+./apps/api/mvnw -f apps/api/pom.xml test -Dtest=OpenApiContractTests -Dopenapi.update=true
+```
+
+```bash
+cd apps/web && npm ci && npm run generate:api
+```
+
 ## Running the services
 
 Both services need `JWT_SECRET` (the same value, at least 32 bytes). The `api` creates the demonstration admin `admin@stockrush.demo` only if `DEMO_ADMIN_PASSWORD` is set. A one-command `docker compose up` is planned in ticket #30; until then you must provide PostgreSQL (one database per service) and RabbitMQ yourself, configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`.

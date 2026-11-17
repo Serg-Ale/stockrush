@@ -1,5 +1,6 @@
 package dev.stockrush.api.orders;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
 import jakarta.validation.constraints.Min;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
+@SecurityRequirement(name = "bearer")
 class OrderController {
 
 	private final OrderService orders;

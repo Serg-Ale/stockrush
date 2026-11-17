@@ -1,0 +1,11 @@
+{
+  "name": "stockrush-web",
+  "private": true,
+  "scripts": {
+    "generate:api": "openapi-ts"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "typescript": "5.9.3"
+  }
+}
