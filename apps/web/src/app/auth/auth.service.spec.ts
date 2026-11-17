@@ -67,6 +67,19 @@ describe('AuthService', () => {
     expect(auth.isAuthenticated()).toBe(true);
   });
 
+  it('is admin only with a valid token whose role is ADMIN', () => {
+    localStorage.setItem('stockrush.token', fakeToken(3600, 'ADMIN'));
+    expect(setup().auth.isAdmin()).toBe(true);
+
+    TestBed.resetTestingModule();
+    localStorage.setItem('stockrush.token', fakeToken(3600, 'CLIENTE'));
+    expect(setup().auth.isAdmin()).toBe(false);
+
+    TestBed.resetTestingModule();
+    localStorage.setItem('stockrush.token', fakeToken(-60, 'ADMIN'));
+    expect(setup().auth.isAdmin()).toBe(false);
+  });
+
   it('forgets the token on logout', async () => {
     localStorage.setItem('stockrush.token', fakeToken(3600));
     const { auth } = setup();

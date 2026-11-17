@@ -16,6 +16,9 @@ import { AuthService } from '../auth/auth.service';
       <nav>
         <a matButton routerLink="/catalogo" routerLinkActive="active">Catálogo</a>
         <a matButton routerLink="/pedidos" routerLinkActive="active">Pedidos</a>
+        @if (auth.isAdmin()) {
+          <a matButton routerLink="/painel" routerLinkActive="active">Painel</a>
+        }
       </nav>
       <span class="spacer"></span>
       <button matButton (click)="logout()">Sair</button>
@@ -31,7 +34,7 @@ import { AuthService } from '../auth/auth.service';
   `,
 })
 export class Shell {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   logout(): void {

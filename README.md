@@ -115,7 +115,7 @@ cd apps/web && npm ci && npm run generate:api
 
 ## Web app
 
-Angular 22 with Angular Material (Material 3 theme), Portuguese UI, signals and Vitest. Sign-up, login, the auth guard, the product catalog and order creation (with an `Idempotency-Key`) work against the api; the live order list updates over SSE and reconnects by itself. With the api running on port 8080:
+Angular 22 with Angular Material (Material 3 theme), Portuguese UI, signals and Vitest. Sign-up, login, the auth guard, the product catalog and order creation (with an `Idempotency-Key`) work against the api; the live order list updates over SSE and reconnects by itself. The admin-only demo panel (`/painel`) fires N simultaneous orders at one product through `POST /admin/race` and charts how many sold, how many were refused and the final stock; set `DEMO_ADMIN_PASSWORD` on the api to get the demo admin. With the api running on port 8080:
 
 ```bash
 cd apps/web && npm ci && npm start

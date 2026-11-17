@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth.guard';
+import { adminGuard, authGuard } from './auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -21,6 +21,12 @@ export const routes: Routes = [
         path: 'pedidos',
         title: 'Pedidos — Stockrush',
         loadComponent: () => import('./pages/orders/orders').then((m) => m.Orders),
+      },
+      {
+        path: 'painel',
+        title: 'Painel — Stockrush',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./pages/panel/panel').then((m) => m.Panel),
       },
       { path: '', pathMatch: 'full', redirectTo: 'catalogo' },
     ],

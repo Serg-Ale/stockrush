@@ -1,0 +1,30 @@
+.lead {
+  max-width: 60ch;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+mat-card {
+  margin-bottom: 16px;
+}
+
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  padding-top: 16px;
+}
+
+.error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--mat-sys-error);
+}
+
+mat-card-actions {
+  padding: 8px 16px 16px;
+}
+
+.summary {
+  margin: 16px 0 0;
+  font: var(--mat-sys-title-medium);
+}
