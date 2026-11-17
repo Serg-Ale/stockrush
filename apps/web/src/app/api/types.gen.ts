@@ -90,23 +90,23 @@ export type MeResponses = {
 
 export type MeResponse = MeResponses[keyof MeResponses];
 
-export type ListData = {
+export type ListOrdersData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/orders';
 };
 
-export type ListResponses = {
+export type ListOrdersResponses = {
     /**
      * OK
      */
     200: Array<OrderResponse>;
 };
 
-export type ListResponse = ListResponses[keyof ListResponses];
+export type ListOrdersResponse = ListOrdersResponses[keyof ListOrdersResponses];
 
-export type CreateData = {
+export type CreateOrderData = {
     body: CreateOrderRequest;
     headers: {
         'Idempotency-Key': string;
@@ -116,32 +116,32 @@ export type CreateData = {
     url: '/orders';
 };
 
-export type CreateResponses = {
+export type CreateOrderResponses = {
     /**
      * Created
      */
     201: OrderResponse;
 };
 
-export type CreateResponse = CreateResponses[keyof CreateResponses];
+export type CreateOrderResponse = CreateOrderResponses[keyof CreateOrderResponses];
 
-export type StreamData = {
+export type StreamOrdersData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/orders/stream';
 };
 
-export type StreamResponses = {
+export type StreamOrdersResponses = {
     /**
      * OK
      */
     200: string;
 };
 
-export type StreamResponse = StreamResponses[keyof StreamResponses];
+export type StreamOrdersResponse = StreamOrdersResponses[keyof StreamOrdersResponses];
 
-export type GetData = {
+export type GetOrderData = {
     body?: never;
     path: {
         id: number;
@@ -150,27 +150,27 @@ export type GetData = {
     url: '/orders/{id}';
 };
 
-export type GetResponses = {
+export type GetOrderResponses = {
     /**
      * OK
      */
     200: OrderResponse;
 };
 
-export type GetResponse = GetResponses[keyof GetResponses];
+export type GetOrderResponse = GetOrderResponses[keyof GetOrderResponses];
 
-export type List1Data = {
+export type ListProductsData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/products';
 };
 
-export type List1Responses = {
+export type ListProductsResponses = {
     /**
      * OK
      */
     200: Array<ProductResponse>;
 };
 
-export type List1Response = List1Responses[keyof List1Responses];
+export type ListProductsResponse = ListProductsResponses[keyof ListProductsResponses];

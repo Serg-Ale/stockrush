@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateData, CreateResponses, GetData, GetResponses, List1Data, List1Responses, ListData, ListResponses, LoginData, LoginResponses, MeData, MeResponses, RegisterData, RegisterResponses, StreamData, StreamResponse, StreamResponses } from './types.gen';
+import type { CreateOrderData, CreateOrderResponses, GetOrderData, GetOrderResponses, ListOrdersData, ListOrdersResponses, ListProductsData, ListProductsResponses, LoginData, LoginResponses, MeData, MeResponses, RegisterData, RegisterResponses, StreamOrdersData, StreamOrdersResponse, StreamOrdersResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -42,13 +42,13 @@ export const me = <ThrowOnError extends boolean = false>(options?: Options<MeDat
     ...options
 });
 
-export const list = <ThrowOnError extends boolean = false>(options?: Options<ListData, ThrowOnError>): RequestResult<ListResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListResponses, unknown, ThrowOnError>({
+export const listOrders = <ThrowOnError extends boolean = false>(options?: Options<ListOrdersData, ThrowOnError>): RequestResult<ListOrdersResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListOrdersResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/orders',
     ...options
 });
 
-export const create = <ThrowOnError extends boolean = false>(options: Options<CreateData, ThrowOnError>): RequestResult<CreateResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateResponses, unknown, ThrowOnError>({
+export const createOrder = <ThrowOnError extends boolean = false>(options: Options<CreateOrderData, ThrowOnError>): RequestResult<CreateOrderResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateOrderResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/orders',
     ...options,
@@ -58,16 +58,16 @@ export const create = <ThrowOnError extends boolean = false>(options: Options<Cr
     }
 });
 
-export const stream = <ThrowOnError extends boolean = false>(options?: Options<StreamData, ThrowOnError, StreamResponse>): Promise<ServerSentEventsResult<StreamResponses>> => (options?.client ?? client).sse.get<StreamResponses, unknown, ThrowOnError>({
+export const streamOrders = <ThrowOnError extends boolean = false>(options?: Options<StreamOrdersData, ThrowOnError, StreamOrdersResponse>): Promise<ServerSentEventsResult<StreamOrdersResponses>> => (options?.client ?? client).sse.get<StreamOrdersResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/orders/stream',
     ...options
 });
 
-export const get = <ThrowOnError extends boolean = false>(options: Options<GetData, ThrowOnError>): RequestResult<GetResponses, unknown, ThrowOnError> => (options.client ?? client).get<GetResponses, unknown, ThrowOnError>({
+export const getOrder = <ThrowOnError extends boolean = false>(options: Options<GetOrderData, ThrowOnError>): RequestResult<GetOrderResponses, unknown, ThrowOnError> => (options.client ?? client).get<GetOrderResponses, unknown, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/orders/{id}',
     ...options
 });
 
-export const list1 = <ThrowOnError extends boolean = false>(options?: Options<List1Data, ThrowOnError>): RequestResult<List1Responses, unknown, ThrowOnError> => (options?.client ?? client).get<List1Responses, unknown, ThrowOnError>({ url: '/products', ...options });
+export const listProducts = <ThrowOnError extends boolean = false>(options?: Options<ListProductsData, ThrowOnError>): RequestResult<ListProductsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListProductsResponses, unknown, ThrowOnError>({ url: '/products', ...options });

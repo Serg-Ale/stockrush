@@ -1,0 +1,37 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>{{ product().name }}</mat-card-title>
+    <mat-card-subtitle>
+      @if (product().availableQuantity > 0) {
+        Disponível: {{ product().availableQuantity }}
+      } @else {
+        Esgotado
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="order()" [id]="'order-' + product().id">
+      <mat-form-field>
+        <mat-label>Quantidade</mat-label>
+        <input matInput type="number" min="1" step="1" formControlName="quantity" />
+        @if (form.controls.quantity.invalid) {
+          <mat-error>Informe um número inteiro a partir de 1.</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Pagamento simulado</mat-label>
+        <mat-select formControlName="paymentToken">
+          @for (token of tokens; track token.value) {
+            <mat-option [value]="token.value">{{ token.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (error(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+    </form>
+  </mat-card-content>
+  <mat-card-actions>
+    <button matButton="filled" type="submit" [attr.form]="'order-' + product().id" [disabled]="busy()">Fazer pedido</button>
+  </mat-card-actions>
+</mat-card>

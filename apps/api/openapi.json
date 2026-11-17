@@ -199,7 +199,7 @@
     },
     "/orders" : {
       "get" : {
-        "operationId" : "list",
+        "operationId" : "listOrders",
         "responses" : {
           "200" : {
             "content" : {
@@ -221,7 +221,7 @@
         "tags" : [ "order-controller" ]
       },
       "post" : {
-        "operationId" : "create",
+        "operationId" : "createOrder",
         "parameters" : [ {
           "in" : "header",
           "name" : "Idempotency-Key",
@@ -262,7 +262,7 @@
     },
     "/orders/stream" : {
       "get" : {
-        "operationId" : "stream",
+        "operationId" : "streamOrders",
         "responses" : {
           "200" : {
             "content" : {
@@ -283,7 +283,7 @@
     },
     "/orders/{id}" : {
       "get" : {
-        "operationId" : "get",
+        "operationId" : "getOrder",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -313,7 +313,7 @@
     },
     "/products" : {
       "get" : {
-        "operationId" : "list_1",
+        "operationId" : "listProducts",
         "responses" : {
           "200" : {
             "content" : {
