@@ -1,0 +1,26 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Java / Maven / Gradle
+target/
+build/
+.gradle/
+*.class
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars

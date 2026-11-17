@@ -1,5 +1,10 @@
 ## O que muda
 
+## Ticket
+
+<!-- Palavra-chave em inglês: o GitHub só fecha o ticket com Closes/Fixes/Resolves ("Fecha" não funciona). -->
+Closes #
+
 ## Checklist
 
 - [ ] Testes passam
