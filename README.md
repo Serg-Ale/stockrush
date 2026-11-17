@@ -113,6 +113,16 @@ After changing a controller:
 cd apps/web && npm ci && npm run generate:api
 ```
 
+## Web app
+
+Angular 22 with Angular Material (Material 3 theme), Portuguese UI, signals and Vitest. Sign-up, login and the auth guard work against the api; the catalog page behind the guard is a placeholder until its ticket. With the api running on port 8080:
+
+```bash
+cd apps/web && npm ci && npm start
+```
+
+`npm start` serves on http://localhost:4200 and proxies the api routes to port 8080 (`proxy.conf.json`). `npx ng test --watch=false` runs the unit tests.
+
 ## Running the services
 
 Both services need `JWT_SECRET` (the same value, at least 32 bytes). The `api` creates the demonstration admin `admin@stockrush.demo` only if `DEMO_ADMIN_PASSWORD` is set. A one-command `docker compose up` is planned in ticket #30; until then you must provide PostgreSQL (one database per service) and RabbitMQ yourself, configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`.

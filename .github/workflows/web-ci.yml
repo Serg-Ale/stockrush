@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  client-up-to-date:
+  build-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,3 +22,7 @@ jobs:
         run: npm run generate:api
       - name: Fail if the committed client is stale
         run: git diff --exit-code -- . ':!package-lock.json' && test -z "$(git ls-files --others --exclude-standard .)"
+      - name: Build
+        run: npx ng build
+      - name: Unit tests
+        run: npx ng test --watch=false

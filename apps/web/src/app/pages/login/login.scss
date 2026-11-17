@@ -1,0 +1,28 @@
+:host {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+mat-card {
+  width: min(400px, 100%);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-sys-error);
+}
+
+mat-card-actions {
+  justify-content: space-between;
+  padding: 8px 16px 16px;
+}
