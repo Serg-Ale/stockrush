@@ -1,8 +1,65 @@
 # stockrush
 
-An order and payment platform with limited stock, built to show how a system behaves when many customers fight for the last units: stock is never oversold, payments are asynchronous, temporary failures are retried with backoff, and what cannot be processed ends in a dead-letter queue instead of leaking stock.
+[![api CI](https://github.com/Serg-Ale/stockrush/actions/workflows/api-ci.yml/badge.svg)](https://github.com/Serg-Ale/stockrush/actions/workflows/api-ci.yml)
+[![payment-service CI](https://github.com/Serg-Ale/stockrush/actions/workflows/payment-service-ci.yml/badge.svg)](https://github.com/Serg-Ale/stockrush/actions/workflows/payment-service-ci.yml)
+![Java 25](https://img.shields.io/badge/Java-25-437291)
+![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4-6DB33F)
+![Status](https://img.shields.io/badge/status-in%20development-orange)
 
-**Status: in development, not deployed yet.** The backend is working end to end; the web app, observability, compose setup and deployment are still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
+**An order and payment platform with limited stock, built to answer one question: what happens when many customers fight for the last units?**
+
+The answer, proved by tests: stock is never oversold, payments are asynchronous, temporary failures are retried with backoff, and what cannot be processed ends in a dead-letter queue instead of leaking stock.
+
+| | |
+|---|---|
+| **200 buyers, 50 units** | exactly 50 orders created, 150 rejected, stock ends at 0 ([ADR 0005](docs/adr/0005-atomic-conditional-stock-decrement.md)) |
+| **Two services** | `api` and `payment-service`, one database each, talking only through RabbitMQ ([ADR 0004](docs/adr/0004-two-services-with-one-database-each.md)) |
+| **No lost events** | transactional outbox, at-least-once delivery, idempotent consumers ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)) |
+| **Closed state machine** | `PENDING` leaves only to `CONFIRMED` or `CANCELLED`, and cancelling returns the stock exactly once ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); the expiry job for orders that never get a result is ticket #35 |
+
+**Status: in development, not deployed yet.** The backend works end to end; the web app, observability, compose setup and deployment are still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
+
+## Architecture at a glance
+
+Customers talk only to `api`. Orders and stock share one database so reserving stock and creating the order is a single transaction; payment lives behind the broker. More views (order lifecycle, data model) are in [docs/architecture.md](docs/architecture.md), which is the source of truth for the diagrams.
+
+```mermaid
+flowchart LR
+    client(["Customer / admin<br/>browser or HTTP client"])
+
+    subgraph api["api (Spring Boot)"]
+        rest["REST + SSE<br/>orders, catalog, auth"]
+        pub["Outbox publisher"]
+        cons["Payment result consumer"]
+    end
+    subgraph pay["payment-service (Spring Boot)"]
+        listener["order.created consumer<br/>decides the payment"]
+        chaos["Chaos control<br/>GET/PUT /chaos, ADMIN only"]
+    end
+
+    apidb[("api database<br/>users, products,<br/>orders, outbox")]
+    paydb[("payments database<br/>one decision per order")]
+    mq{{"RabbitMQ<br/>exchanges: orders, payments"}}
+
+    client -->|"HTTPS: create order, list orders"| rest
+    rest -.->|"SSE: order-status events"| client
+    client -->|"admin JWT: tune failure rate and latency"| chaos
+
+    rest --> apidb
+    pub --> apidb
+    cons --> apidb
+    pub -->|"order.created"| mq
+    mq -->|"order.created"| listener
+    listener --> paydb
+    listener -->|"payment.result"| mq
+    mq -->|"payment.result"| cons
+    chaos -.->|"in-memory settings"| listener
+
+    classDef store fill:#eef6ee,stroke:#2e7d32,color:#10300f
+    classDef broker fill:#e8f1ff,stroke:#3b6fd4,color:#12233f
+    class apidb,paydb store
+    class mq broker
+```
 
 ## What works today
 
