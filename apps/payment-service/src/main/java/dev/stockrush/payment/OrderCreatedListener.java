@@ -1,6 +1,8 @@
 package dev.stockrush.payment;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -58,10 +60,12 @@ class OrderCreatedListener {
 
 	private final int maxAttempts;
 
+	private final Counter retries;
+
 	OrderCreatedListener(JdbcClient jdbc, RabbitTemplate rabbit, JsonMapper json, ChaosSettings chaos,
 			@Value("${app.payment.confirm-timeout:PT5S}") Duration confirmTimeout,
 			@Value("${app.payment.retry.steps:PT1S,PT2S,PT4S}") List<Duration> retrySteps,
-			@Value("${app.payment.retry.max-attempts:4}") int maxAttempts) {
+			@Value("${app.payment.retry.max-attempts:4}") int maxAttempts, MeterRegistry meters) {
 		if (retrySteps.size() < maxAttempts - 1) {
 			throw new IllegalArgumentException("Need one retry step per retry: " + (maxAttempts - 1));
 		}
@@ -72,6 +76,9 @@ class OrderCreatedListener {
 		this.confirmTimeout = confirmTimeout;
 		this.retrySteps = retrySteps;
 		this.maxAttempts = maxAttempts;
+		this.retries = Counter.builder("payment_retries_total")
+				.description("Payment attempts that failed temporarily and were parked for another try")
+				.register(meters);
 	}
 
 	@RabbitListener(queues = ORDER_CREATED)
@@ -117,6 +124,7 @@ class OrderCreatedListener {
 	private void retryLater(Message message, int attempt) {
 		var copy = MessageBuilder.fromMessage(message).build();
 		publish("", waitQueue(attempt), copy);
+		retries.increment();
 	}
 
 	private static String waitQueue(int attempt) {
