@@ -177,6 +177,36 @@ class OrderCreationTests {
 		assertThat(postOrder(token, key, productId, 1).statusCode()).isEqualTo(201);
 	}
 
+	@Test
+	void createdOrderLeavesOnePendingOutboxEvent() throws Exception {
+		var productId = newProduct(10);
+		var token = newUserToken();
+		var key = UUID.randomUUID().toString();
+
+		var orderId = json.readTree(postOrder(token, key, productId, 3).body()).path("id").asLong();
+		postOrder(token, key, productId, 3);
+
+		var events = jdbc.queryForList(
+				"select type, payload::text as payload from outbox where aggregate_id = ? and published_at is null",
+				orderId);
+		assertThat(events).hasSize(1);
+		assertThat(events.get(0).get("type")).isEqualTo("order.created");
+		var payload = json.readTree((String) events.get(0).get("payload"));
+		assertThat(payload.path("orderId").asLong()).isEqualTo(orderId);
+		assertThat(payload.path("productId").asLong()).isEqualTo(productId);
+		assertThat(payload.path("quantity").asInt()).isEqualTo(3);
+	}
+
+	@Test
+	void rejectedOrderLeavesNoOutboxEvent() throws Exception {
+		var productId = newProduct(1);
+		var before = jdbc.queryForObject("select count(*) from outbox", Integer.class);
+
+		assertThat(postOrder(newUserToken(), productId, 2).statusCode()).isEqualTo(409);
+
+		assertThat(jdbc.queryForObject("select count(*) from outbox", Integer.class)).isEqualTo(before);
+	}
+
 	private long newProduct(int quantity) {
 		return jdbc.queryForObject(
 				"insert into products (name, available_quantity) values (?, ?) returning id", Long.class,
