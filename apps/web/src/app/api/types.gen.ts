@@ -15,6 +15,16 @@ export type Credentials = {
     password: string;
 };
 
+export type DemoRaceResult = {
+    buyers?: number;
+    failed?: number;
+    productId?: number;
+    rejected?: number;
+    sold?: number;
+    stockAfter?: number;
+    stockBefore?: number;
+};
+
 export type Me = {
     email?: string;
 };
@@ -33,6 +43,13 @@ export type ProductResponse = {
     name?: string;
 };
 
+export type RaceRequest = {
+    buyers?: number;
+    paymentToken?: string;
+    productId: number;
+    stock?: number;
+};
+
 export type RegisterResponse = {
     email?: string;
     id?: number;
@@ -41,6 +58,22 @@ export type RegisterResponse = {
 export type TokenResponse = {
     token?: string;
 };
+
+export type RunDemoRaceData = {
+    body: RaceRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/race';
+};
+
+export type RunDemoRaceResponses = {
+    /**
+     * OK
+     */
+    200: DemoRaceResult;
+};
+
+export type RunDemoRaceResponse = RunDemoRaceResponses[keyof RunDemoRaceResponses];
 
 export type LoginData = {
     body: Credentials;
