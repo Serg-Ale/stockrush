@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,11 @@ class TwoServiceFlowTests {
 	void startPaymentService() throws Exception {
 		var jar = findJar();
 		assumeTrue(jar != null, "payment-service jar not built");
-		jdbc.execute("create database payments");
+		var exists = jdbc.queryForObject("select exists (select 1 from pg_database where datname = 'payments')",
+				Boolean.class);
+		if (!exists) {
+			jdbc.execute("create database payments");
+		}
 		var log = Files.createTempFile("payment-service", ".log").toFile();
 		var builder = new ProcessBuilder("java", "-jar", jar.getAbsolutePath()).redirectErrorStream(true)
 				.redirectOutput(log);
@@ -77,21 +82,44 @@ class TwoServiceFlowTests {
 	}
 
 	@AfterEach
-	void stopPaymentService() {
+	void stopPaymentService() throws InterruptedException {
 		if (paymentService != null) {
 			paymentService.destroy();
+			paymentService.waitFor(15, TimeUnit.SECONDS);
 		}
 	}
 
 	@Test
 	void approvedOrderIsConfirmedByThePaymentService() throws Exception {
-		var productId = jdbc.queryForObject("insert into products (name, available_quantity) values (?, 5) returning id",
+		var productId = newProduct();
+
+		assertThat(placeAndWait(productId, "tok_approve")).isEqualTo("CONFIRMED");
+		assertThat(stock(productId)).isEqualTo(3);
+	}
+
+	@Test
+	void declinedOrderIsCancelledAndItsStockReturned() throws Exception {
+		var productId = newProduct();
+
+		assertThat(placeAndWait(productId, "tok_decline")).isEqualTo("CANCELLED");
+		assertThat(stock(productId)).isEqualTo(5);
+	}
+
+	private long newProduct() {
+		return jdbc.queryForObject("insert into products (name, available_quantity) values (?, 5) returning id",
 				Long.class, "e2e-" + UUID.randomUUID());
+	}
+
+	private int stock(long productId) {
+		return jdbc.queryForObject("select available_quantity from products where id = ?", Integer.class, productId);
+	}
+
+	private String placeAndWait(long productId, String paymentToken) throws Exception {
 		var credentials = Map.of("email", "user-" + UUID.randomUUID() + "@example.com", "password", "correct-horse-battery");
 		post("/auth/register", null, null, credentials);
 		var token = json.readTree(post("/auth/login", null, null, credentials).body()).path("token").asString();
 		var key = UUID.randomUUID().toString();
-		var body = Map.of("productId", productId, "quantity", 2, "paymentToken", "tok_approve");
+		var body = Map.of("productId", productId, "quantity", 2, "paymentToken", paymentToken);
 
 		var orderId = json.readTree(post("/orders", token, key, body).body()).path("id").asLong();
 		post("/orders", token, key, body);
@@ -105,9 +133,7 @@ class TwoServiceFlowTests {
 		}
 		while (status.equals("PENDING") && System.nanoTime() < deadline);
 
-		assertThat(status).isEqualTo("CONFIRMED");
-		assertThat(jdbc.queryForObject("select available_quantity from products where id = ?", Integer.class, productId))
-				.isEqualTo(3);
+		return status;
 	}
 
 	private File findJar() {

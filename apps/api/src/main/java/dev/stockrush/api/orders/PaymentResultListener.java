@@ -11,14 +11,13 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Applies the payment service's results to orders. The transition is a conditional UPDATE from PENDING, so a
- * result delivered twice, or one that arrives after the order is already final, changes nothing.
+ * Applies the payment service's results to orders through {@link OrderTransitions}, which are idempotent: a result
+ * delivered twice, or one that arrives after the order is already final, changes nothing.
  */
 @Component
 class PaymentResultListener {
@@ -29,12 +28,12 @@ class PaymentResultListener {
 
 	static final String PAYMENT_RESULT = "payment.result";
 
-	private final JdbcClient jdbc;
+	private final OrderTransitions transitions;
 
 	private final JsonMapper json;
 
-	PaymentResultListener(JdbcClient jdbc, JsonMapper json) {
-		this.jdbc = jdbc;
+	PaymentResultListener(OrderTransitions transitions, JsonMapper json) {
+		this.transitions = transitions;
 		this.json = json;
 	}
 
@@ -50,15 +49,16 @@ class PaymentResultListener {
 		catch (JacksonException | IllegalArgumentException e) {
 			throw new AmqpRejectAndDontRequeueException("Invalid payment.result message", e);
 		}
-		if (!result.equals("APPROVED")) {
-			// DECLINED and EXHAUSTED cancel the order and return the stock: a later ticket.
-			log.warn("Ignoring unsupported payment result {} for order {}", result, orderId);
-			return;
-		}
-		var confirmed = jdbc.sql("update orders set status = 'CONFIRMED' where id = :id and status = 'PENDING'")
-				.param("id", orderId)
-				.update();
-		if (confirmed == 0) {
+		var applied = switch (result) {
+			case "APPROVED" -> transitions.confirm(orderId);
+			case "DECLINED" -> transitions.cancel(orderId, "PAYMENT_DECLINED");
+			default -> {
+				// EXHAUSTED cancels with PAYMENT_UNAVAILABLE: a later ticket.
+				log.warn("Ignoring unsupported payment result {} for order {}", result, orderId);
+				yield true;
+			}
+		};
+		if (!applied) {
 			log.info("Payment result {} for order {} discarded: order is not PENDING", result, orderId);
 		}
 	}
