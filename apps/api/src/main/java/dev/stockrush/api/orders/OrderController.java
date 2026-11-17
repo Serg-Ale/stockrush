@@ -1,12 +1,15 @@
 package dev.stockrush.api.orders;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -28,6 +31,16 @@ class OrderController {
 			@Valid @RequestBody CreateOrderRequest request, Authentication authentication) {
 		return orders.create(authentication.getName(), idempotencyKey, request.productId(), request.quantity(),
 				request.paymentToken());
+	}
+
+	@GetMapping("/orders")
+	List<OrderService.OrderResponse> list(Authentication authentication) {
+		return orders.list(authentication.getName());
+	}
+
+	@GetMapping("/orders/{id}")
+	OrderService.OrderResponse get(@PathVariable long id, Authentication authentication) {
+		return orders.get(authentication.getName(), id);
 	}
 
 	record CreateOrderRequest(@NotNull Long productId, @Min(1) int quantity, @Size(max = 64) String paymentToken) {

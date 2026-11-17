@@ -1,5 +1,6 @@
 package dev.stockrush.api.orders;
 
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,7 +13,8 @@ import org.springframework.web.ErrorResponseException;
 class OrderService {
 
 	private static final RowMapper<OrderResponse> ORDER = (rs, i) -> new OrderResponse(rs.getLong("id"),
-			rs.getLong("product_id"), rs.getInt("quantity"), rs.getString("status"));
+			rs.getLong("product_id"), rs.getInt("quantity"), rs.getString("status"),
+			rs.getString("cancellation_reason"));
 
 	private final JdbcClient jdbc;
 
@@ -35,7 +37,7 @@ class OrderService {
 				select u.id, p.id, :quantity, 'PENDING', :key
 				from users u, products p where u.email = :email and p.id = :productId
 				on conflict (user_id, idempotency_key) do nothing
-				returning id, product_id, quantity, status
+				returning id, product_id, quantity, status, cancellation_reason
 				""")
 				.param("email", userEmail)
 				.param("productId", productId)
@@ -71,9 +73,37 @@ class OrderService {
 		return order;
 	}
 
+	/** The user's own orders, newest first. {@code cancellationReason} is the customer-facing enum only. */
+	List<OrderResponse> list(String userEmail) {
+		return jdbc.sql("""
+				select o.id, o.product_id, o.quantity, o.status, o.cancellation_reason from orders o
+				join users u on u.id = o.user_id
+				where u.email = :email
+				order by o.id desc
+				""")
+				.param("email", userEmail)
+				.query(ORDER)
+				.list();
+	}
+
+	/** Someone else's order is reported as not found, so ids cannot be probed. */
+	OrderResponse get(String userEmail, long orderId) {
+		return jdbc.sql("""
+				select o.id, o.product_id, o.quantity, o.status, o.cancellation_reason from orders o
+				join users u on u.id = o.user_id
+				where u.email = :email and o.id = :id
+				""")
+				.param("email", userEmail)
+				.param("id", orderId)
+				.query(ORDER)
+				.optional()
+				.orElseThrow(() -> new ErrorResponseException(HttpStatus.NOT_FOUND,
+						ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Order not found."), null));
+	}
+
 	private OrderResponse replay(String userEmail, String idempotencyKey, long productId, int quantity) {
 		var existing = jdbc.sql("""
-				select o.id, o.product_id, o.quantity, o.status from orders o
+				select o.id, o.product_id, o.quantity, o.status, o.cancellation_reason from orders o
 				join users u on u.id = o.user_id
 				where u.email = :email and o.idempotency_key = :key
 				""")
@@ -100,7 +130,7 @@ class OrderService {
 		return new ErrorResponseException(status, ProblemDetail.forStatusAndDetail(status, detail), null);
 	}
 
-	record OrderResponse(long id, long productId, int quantity, String status) {
+	record OrderResponse(long id, long productId, int quantity, String status, String cancellationReason) {
 	}
 
 }
