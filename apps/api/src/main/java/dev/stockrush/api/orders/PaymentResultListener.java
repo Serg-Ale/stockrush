@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -29,6 +30,8 @@ class PaymentResultListener {
 
 	static final String PAYMENTS_EXCHANGE = "payments";
 
+	static final String CORRELATION_ID_HEADER = "x-correlation-id";
+
 	static final String PAYMENT_RESULT = "payment.result";
 
 	private final OrderTransitions transitions;
@@ -50,6 +53,19 @@ class PaymentResultListener {
 
 	@RabbitListener(queues = PAYMENT_RESULT)
 	void onPaymentResult(Message message) {
+		var correlationId = message.getMessageProperties().<String>getHeader(CORRELATION_ID_HEADER);
+		if (correlationId != null) {
+			MDC.put("correlationId", correlationId);
+		}
+		try {
+			apply(message);
+		}
+		finally {
+			MDC.remove("correlationId");
+		}
+	}
+
+	private void apply(Message message) {
 		long orderId;
 		String result;
 		try {
@@ -66,7 +82,10 @@ class PaymentResultListener {
 			case "EXHAUSTED" -> transitions.cancel(orderId, "PAYMENT_UNAVAILABLE", "EXHAUSTED");
 			default -> throw new AmqpRejectAndDontRequeueException("Unknown payment result: " + result);
 		};
-		if (!applied) {
+		if (applied) {
+			log.info("Payment result {} applied to order {}", result, orderId);
+		}
+		else {
 			discard(orderId, result);
 		}
 	}

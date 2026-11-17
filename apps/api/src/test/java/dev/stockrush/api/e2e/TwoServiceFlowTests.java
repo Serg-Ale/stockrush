@@ -18,6 +18,9 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -32,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
  * same Postgres, then walks an order through HTTP, outbox, both services and back. Build the jar first with
  * {@code ../payment-service/mvnw package -DskipTests}; without it the test is skipped.
  */
+@ExtendWith(OutputCaptureExtension.class)
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TwoServiceFlowTests {
@@ -57,6 +61,10 @@ class TwoServiceFlowTests {
 
 	private Process paymentService;
 
+	private File paymentLog;
+
+	private String correlationId;
+
 	@BeforeEach
 	void startPaymentService() throws Exception {
 		var jar = findJar();
@@ -66,9 +74,9 @@ class TwoServiceFlowTests {
 		if (!exists) {
 			jdbc.execute("create database payments");
 		}
-		var log = Files.createTempFile("payment-service", ".log").toFile();
+		paymentLog = Files.createTempFile("payment-service", ".log").toFile();
 		var builder = new ProcessBuilder("java", "-jar", jar.getAbsolutePath()).redirectErrorStream(true)
-				.redirectOutput(log);
+				.redirectOutput(paymentLog);
 		builder.environment().putAll(Map.of(
 				"PORT", "0",
 				"JWT_SECRET", "e2e-secret-e2e-secret-e2e-secret-0123456789",
@@ -115,6 +123,19 @@ class TwoServiceFlowTests {
 		assertThat(stock(productId)).isEqualTo(5);
 		assertThat(jdbc.queryForObject("select cancellation_reason from orders where product_id = ?", String.class,
 				productId)).isEqualTo("PAYMENT_UNAVAILABLE");
+	}
+
+	@Test
+	void theSameCorrelationIdAppearsInTheLogsOfBothServices(CapturedOutput apiLog) throws Exception {
+		correlationId = "e2e-" + UUID.randomUUID();
+		var productId = newProduct();
+
+		assertThat(placeAndWait(productId, "tok_approve")).isEqualTo("CONFIRMED");
+
+		var marker = "[" + correlationId + "]";
+		assertThat(apiLog.getOut()).contains(marker + " ").contains("created for product " + productId)
+				.contains("Payment result APPROVED applied");
+		assertThat(Files.readString(paymentLog.toPath())).contains(marker).contains("decided on attempt 1: APPROVED");
 	}
 
 	private long newProduct() {
@@ -164,6 +185,9 @@ class TwoServiceFlowTests {
 		}
 		if (key != null) {
 			builder.header("Idempotency-Key", key);
+		}
+		if (correlationId != null) {
+			builder.header("X-Correlation-Id", correlationId);
 		}
 		return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 	}

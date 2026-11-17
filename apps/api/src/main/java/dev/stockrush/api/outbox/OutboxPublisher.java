@@ -31,9 +31,11 @@ public class OutboxPublisher {
 
 	public static final String EXCHANGE = "orders";
 
+	public static final String CORRELATION_ID_HEADER = "x-correlation-id";
+
 	public static final String ORDER_CREATED = "order.created";
 
-	private record Row(long id, String type, String payload) {
+	private record Row(long id, String type, String correlationId, String payload) {
 	}
 
 	private final JdbcClient jdbc;
@@ -61,13 +63,14 @@ public class OutboxPublisher {
 	@Transactional
 	public int publishPending() {
 		List<Row> rows = jdbc.sql("""
-				select id, type, payload::text as payload from outbox
+				select id, type, correlation_id, payload::text as payload from outbox
 				where published_at is null
 				order by id limit :limit
 				for update skip locked
 				""")
 				.param("limit", batchSize)
-				.query((rs, i) -> new Row(rs.getLong("id"), rs.getString("type"), rs.getString("payload")))
+				.query((rs, i) -> new Row(rs.getLong("id"), rs.getString("type"), rs.getString("correlation_id"),
+						rs.getString("payload")))
 				.list();
 		for (var row : rows) {
 			publish(row);
@@ -81,6 +84,9 @@ public class OutboxPublisher {
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
 		properties.setMessageId(String.valueOf(row.id()));
+		if (row.correlationId() != null) {
+			properties.setHeader(CORRELATION_ID_HEADER, row.correlationId());
+		}
 		Message message = MessageBuilder.withBody(row.payload().getBytes(StandardCharsets.UTF_8))
 				.andProperties(properties)
 				.build();

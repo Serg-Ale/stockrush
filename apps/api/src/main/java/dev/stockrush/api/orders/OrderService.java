@@ -1,6 +1,9 @@
 package dev.stockrush.api.orders;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.jdbc.core.RowMapper;
@@ -15,6 +18,8 @@ class OrderService {
 	private static final RowMapper<OrderResponse> ORDER = (rs, i) -> new OrderResponse(rs.getLong("id"),
 			rs.getLong("product_id"), rs.getInt("quantity"), rs.getString("status"),
 			rs.getString("cancellation_reason"));
+
+	private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
 	private final JdbcClient jdbc;
 
@@ -60,8 +65,8 @@ class OrderService {
 		}
 		var order = created.get();
 		jdbc.sql("""
-				insert into outbox (aggregate_id, type, payload)
-				values (:id, 'order.created',
+				insert into outbox (aggregate_id, type, correlation_id, payload)
+				values (:id, 'order.created', :correlationId,
 				        jsonb_build_object('orderId', :id, 'productId', :productId, 'quantity', :quantity,
 				                   'paymentToken', :paymentToken))
 				""")
@@ -69,7 +74,9 @@ class OrderService {
 				.param("productId", order.productId())
 				.param("quantity", order.quantity())
 				.param("paymentToken", paymentToken)
+				.param("correlationId", MDC.get("correlationId"))
 				.update();
+		log.info("Order {} created for product {} (quantity {})", order.id(), productId, quantity);
 		return order;
 	}
 

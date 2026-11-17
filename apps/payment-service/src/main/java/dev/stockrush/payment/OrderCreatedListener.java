@@ -8,6 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -35,6 +38,10 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 class OrderCreatedListener {
+
+	static final String CORRELATION_ID_HEADER = "x-correlation-id";
+
+	private static final Logger log = LoggerFactory.getLogger(OrderCreatedListener.class);
 
 	static final String ORDERS_EXCHANGE = "orders";
 
@@ -83,16 +90,32 @@ class OrderCreatedListener {
 
 	@RabbitListener(queues = ORDER_CREATED)
 	void onOrderCreated(Message message) {
+		var correlationId = message.getMessageProperties().<String>getHeader(CORRELATION_ID_HEADER);
+		if (correlationId != null) {
+			MDC.put("correlationId", correlationId);
+		}
+		try {
+			process(message);
+		}
+		finally {
+			MDC.remove("correlationId");
+		}
+	}
+
+	private void process(Message message) {
 		var event = parse(message);
 		var attempt = attempt(message);
 		var result = decide(event.orderId(), event.paymentToken(), attempt);
 		if (result != null) {
+			log.info("Payment for order {} decided on attempt {}: {}", event.orderId(), attempt, result);
 			publishResult(event.orderId(), result);
 		}
 		else if (attempt < maxAttempts) {
+			log.info("Payment for order {} failed temporarily on attempt {}; retrying", event.orderId(), attempt);
 			retryLater(message, attempt);
 		}
 		else {
+			log.warn("Payment for order {} exhausted {} attempts; dead-lettering", event.orderId(), attempt);
 			giveUp(message, event.orderId());
 		}
 	}
@@ -186,6 +209,10 @@ class OrderCreatedListener {
 		var properties = new MessageProperties();
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+		var correlationId = MDC.get("correlationId");
+		if (correlationId != null) {
+			properties.setHeader(CORRELATION_ID_HEADER, correlationId);
+		}
 		Message message = MessageBuilder
 				.withBody(json.writeValueAsString(Map.of("orderId", orderId, "result", result))
 						.getBytes(StandardCharsets.UTF_8))
