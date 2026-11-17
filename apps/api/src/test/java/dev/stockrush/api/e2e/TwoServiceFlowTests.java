@@ -71,6 +71,7 @@ class TwoServiceFlowTests {
 				.redirectOutput(log);
 		builder.environment().putAll(Map.of(
 				"PORT", "0",
+				"JWT_SECRET", "e2e-secret-e2e-secret-e2e-secret-0123456789",
 				"DB_URL", "jdbc:postgresql://" + postgres.getHost() + ":" + postgres.getFirstMappedPort() + "/payments",
 				"DB_USER", postgres.getUsername(),
 				"DB_PASSWORD", postgres.getPassword(),

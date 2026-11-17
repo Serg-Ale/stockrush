@@ -52,11 +52,13 @@ class OrderCreatedListener {
 
 	private final Duration confirmTimeout;
 
+	private final ChaosSettings chaos;
+
 	private final List<Duration> retrySteps;
 
 	private final int maxAttempts;
 
-	OrderCreatedListener(JdbcClient jdbc, RabbitTemplate rabbit, JsonMapper json,
+	OrderCreatedListener(JdbcClient jdbc, RabbitTemplate rabbit, JsonMapper json, ChaosSettings chaos,
 			@Value("${app.payment.confirm-timeout:PT5S}") Duration confirmTimeout,
 			@Value("${app.payment.retry.steps:PT1S,PT2S,PT4S}") List<Duration> retrySteps,
 			@Value("${app.payment.retry.max-attempts:4}") int maxAttempts) {
@@ -66,6 +68,7 @@ class OrderCreatedListener {
 		this.jdbc = jdbc;
 		this.rabbit = rabbit;
 		this.json = json;
+		this.chaos = chaos;
 		this.confirmTimeout = confirmTimeout;
 		this.retrySteps = retrySteps;
 		this.maxAttempts = maxAttempts;
@@ -141,9 +144,10 @@ class OrderCreatedListener {
 			case "tok_decline" -> "DECLINED";
 			case "tok_flaky" -> attempt <= 2 ? null : "APPROVED";
 			case "tok_dead" -> null;
+			case "tok_slow" -> slowApproval();
 			default -> throw new AmqpRejectAndDontRequeueException("Unsupported payment token: " + token);
 		};
-		if (result == null) {
+		if (result == null || chaos.shouldFail()) {
 			return null;
 		}
 		jdbc.sql("insert into payments (order_id, token, result) values (:id, :token, :result) "
@@ -156,6 +160,18 @@ class OrderCreatedListener {
 				.param("id", orderId)
 				.query(String.class)
 				.single();
+	}
+
+	/** tok_slow answers APPROVED, but only after the configured latency. */
+	private String slowApproval() {
+		try {
+			Thread.sleep(chaos.latency());
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted while simulating latency", e);
+		}
+		return "APPROVED";
 	}
 
 	private void publishResult(long orderId, String result) {
