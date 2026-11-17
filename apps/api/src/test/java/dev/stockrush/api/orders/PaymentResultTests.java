@@ -67,6 +67,38 @@ class PaymentResultTests {
 		assertThat(status(cancelled)).isEqualTo("CANCELLED");
 	}
 
+	@Test
+	void declinedResultCancelsTheOrderAndReturnsTheStockOnce() throws Exception {
+		var orderId = newOrder("PENDING");
+		var productId = jdbc.queryForObject("select product_id from orders where id = ?", Long.class, orderId);
+
+		result(orderId, "DECLINED");
+		result(orderId, "DECLINED");
+		var marker = newOrder("PENDING");
+		result(marker, "DECLINED");
+
+		await(() -> status(marker).equals("CANCELLED"));
+		assertThat(status(orderId)).isEqualTo("CANCELLED");
+		assertThat(jdbc.queryForObject("select cancellation_reason from orders where id = ?", String.class, orderId))
+				.isEqualTo("PAYMENT_DECLINED");
+		assertThat(jdbc.queryForObject("select available_quantity from products where id = ?", Integer.class, productId))
+				.isEqualTo(5);
+	}
+
+	@Test
+	void declinedResultNeverCancelsAConfirmedOrder() throws Exception {
+		var confirmed = newOrder("CONFIRMED");
+		var marker = newOrder("PENDING");
+
+		result(confirmed, "DECLINED");
+		result(marker, "DECLINED");
+
+		await(() -> status(marker).equals("CANCELLED"));
+		assertThat(status(confirmed)).isEqualTo("CONFIRMED");
+		assertThat(jdbc.queryForObject("select available_quantity from products where id = (select product_id from orders where id = ?)",
+				Integer.class, confirmed)).isEqualTo(4);
+	}
+
 	private void result(long orderId, String result) throws Exception {
 		var properties = new MessageProperties();
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
@@ -94,7 +126,7 @@ class PaymentResultTests {
 				"insert into users (email, password_hash) values (?, 'x') returning id", Long.class,
 				email);
 		var productId = jdbc.queryForObject(
-				"insert into products (name, available_quantity) values (?, 5) returning id", Long.class,
+				"insert into products (name, available_quantity) values (?, 4) returning id", Long.class,
 				"test-" + UUID.randomUUID());
 		return jdbc.queryForObject("insert into orders (user_id, product_id, quantity, status) values (?, ?, 1, ?) "
 				+ "returning id", Long.class, userId, productId, status);
