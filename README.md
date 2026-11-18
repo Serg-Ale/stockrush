@@ -133,6 +133,10 @@ One command brings up PostgreSQL (one database per service), RabbitMQ, `payment-
 
 `JWT_SECRET` and `DEMO_ADMIN_PASSWORD` have local-only defaults in `compose.yaml`; override them with a `.env` file or the environment, and never reuse the defaults anywhere public. To run the services outside Docker, both need `JWT_SECRET` (the same value, at least 32 bytes) and PostgreSQL and RabbitMQ configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`; the `api` creates the demo admin only if `DEMO_ADMIN_PASSWORD` is set.
 
+## End-to-end tests
+
+With the stack up (`docker compose up --build --wait`), `cd e2e && npm ci && npx playwright install chromium && npx playwright test` signs in as the demo admin, fires a race from the panel and checks that sold plus rejected equals the number of buyers and the final stock matches; it also checks that a regular customer gets no panel. The `e2e-ci` workflow does the same on every push. Set `E2E_BASE_URL` or `E2E_ADMIN_PASSWORD` if you changed the defaults.
+
 ## Stack
 
 Java 25 · Spring Boot 4 · PostgreSQL · Flyway · RabbitMQ · Testcontainers · GitHub Actions. Planned: Angular, Docker Compose, Prometheus and Grafana, Terraform, AWS.
