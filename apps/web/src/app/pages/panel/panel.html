@@ -53,8 +53,10 @@
   </mat-card-actions>
 </mat-card>
 
+<app-chaos-control />
+
 @if (result(); as r) {
-  <mat-card appearance="outlined" class="result rise">
+  <mat-card appearance="outlined" class="result" [appReveal]="r">
     <mat-card-header>
       <mat-card-title>Resultado</mat-card-title>
       <mat-card-subtitle>{{ r.buyers }} compradores, estoque inicial {{ r.stockBefore }}</mat-card-subtitle>

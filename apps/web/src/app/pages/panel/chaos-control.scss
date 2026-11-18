@@ -1,0 +1,38 @@
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 24px;
+  padding-top: 16px;
+}
+
+.slider {
+  display: grid;
+  gap: 4px;
+
+  small {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+mat-slider {
+  width: 100%;
+  margin: 0;
+}
+
+.error,
+.applied {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+.applied {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+mat-card-actions {
+  padding: 8px 16px 16px;
+}
