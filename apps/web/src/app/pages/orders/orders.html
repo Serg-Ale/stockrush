@@ -1,14 +1,17 @@
-<div class="heading">
-  <h1>Meus pedidos</h1>
+<div class="page-head heading">
+  <div>
+    <h1>Meus pedidos</h1>
+    <p>Cada pedido muda de estado sozinho assim que o pagamento é decidido.</p>
+  </div>
   @switch (connection()) {
     @case ('live') {
-      <span class="connection live" role="status">● Ao vivo</span>
+      <span class="connection live" role="status"><i class="dot"></i>Ao vivo</span>
     }
     @case ('reconnecting') {
-      <span class="connection" role="status">Reconectando…</span>
+      <span class="connection" role="status"><i class="dot"></i>Reconectando…</span>
     }
     @default {
-      <span class="connection" role="status">Conectando…</span>
+      <span class="connection" role="status"><i class="dot"></i>Conectando…</span>
     }
   }
 </div>
@@ -16,14 +19,14 @@
   <mat-progress-bar mode="indeterminate" />
 }
 @if (rows().length === 0 && connection() === 'live') {
-  <p>Você ainda não fez nenhum pedido.</p>
+  <p class="empty">Você ainda não fez nenhum pedido.</p>
 }
-<ul class="orders">
+<ul class="orders rise">
   @for (row of rows(); track row.order.id) {
     <li [attr.data-status]="row.order.status">
       <div class="info">
-        <strong>Pedido #{{ row.order.id }}</strong>
-        <span>{{ row.product }} × {{ row.order.quantity }}</span>
+        <strong class="num">Pedido #{{ row.order.id }}</strong>
+        <span class="num">{{ row.product }} × {{ row.order.quantity }}</span>
         @if (row.reason) {
           <span class="reason">{{ row.reason }}</span>
         }

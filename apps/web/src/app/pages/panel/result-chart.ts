@@ -3,6 +3,7 @@ import { BarController, BarElement, CategoryScale, Chart, LinearScale, Tooltip }
 import { RaceResult } from '../../demo/demo-race.service';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+Chart.defaults.font.family = "Geist, Roboto, sans-serif";
 
 /** The three numbers the panel is about, in the order they are read. */
 export function chartData(result: RaceResult) {
@@ -47,7 +48,7 @@ export class ResultChart implements OnDestroy {
       this.chart?.destroy();
       this.chart = new Chart(this.canvas().nativeElement, {
         type: 'bar',
-        data: { labels, datasets: [{ data: values, backgroundColor: colors }] },
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 10, borderSkipped: false, maxBarThickness: 96 }] },
         options: {
           maintainAspectRatio: false,
           animation: matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined,

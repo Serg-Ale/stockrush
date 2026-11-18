@@ -9,9 +9,24 @@ html {
       primary: mat.$cyan-palette,
       tertiary: mat.$orange-palette,
     ),
-    typography: Roboto,
+    typography: (
+      plain-family: ('Geist', Roboto, sans-serif),
+      brand-family: ('Geist', Roboto, sans-serif),
+      bold-weight: 650,
+      medium-weight: 550,
+      regular-weight: 400,
+    ),
     density: 0,
   ));
+
+  // Project tokens on top of the Material system: the language the header introduced (tonal surfaces, soft corners,
+  // one hairline) applied to every page.
+  --sr-surface: var(--mat-sys-surface-container-low);
+  --sr-hairline: color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+  --sr-radius: 20px;
+  --sr-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  scrollbar-color: var(--mat-sys-outline-variant) transparent;
 }
 
 body {
@@ -19,4 +34,76 @@ body {
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+input {
+  caret-color: var(--mat-sys-primary);
+}
+
+// Numbers that line up in columns and do not jitter when they change.
+.num,
+input[type='number'] {
+  font-variant-numeric: tabular-nums;
+}
+
+// Every page opens the same way: a title, then one line saying what the page is for.
+.page-head {
+  margin: 0 0 24px;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-large);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    max-width: 60ch;
+    margin: 8px 0 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+// The surface used by cards, list rows and the result block.
+.surface {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-hairline);
+  border-radius: var(--sr-radius);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+// Cards across the app share the tonal surface; the outlined variant is only a hook for Material's structure.
+mat-card.mat-mdc-card {
+  --mat-card-outlined-container-color: var(--sr-surface);
+  --mat-card-outlined-outline-color: var(--sr-hairline);
+  --mat-card-outlined-container-shape: var(--sr-radius);
+  --mat-card-title-text-font: var(--mat-sys-title-large);
+  --mat-card-title-text-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 420ms var(--sr-ease) both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }

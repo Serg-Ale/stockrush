@@ -1,10 +1,13 @@
-<h1>Catálogo</h1>
+<header class="page-head">
+  <h1>Catálogo</h1>
+  <p>Estoque limitado: quando acaba, acaba. Faça o pedido antes que outro comprador leve a última unidade.</p>
+</header>
 @if (loading()) {
   <mat-progress-bar mode="indeterminate" />
 } @else if (failed()) {
   <p class="error" role="alert">Não foi possível carregar o catálogo. Recarregue a página.</p>
 } @else if (products().length === 0) {
-  <p>Nenhum produto disponível no momento.</p>
+  <p class="empty">Nenhum produto disponível no momento.</p>
 } @else {
   <div class="grid">
     @for (product of products(); track product.id) {

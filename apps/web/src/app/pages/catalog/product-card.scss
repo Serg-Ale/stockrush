@@ -1,3 +1,25 @@
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font: var(--mat-sys-label-large);
+
+  &.out {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
+mat-card-header {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
 form {
   display: grid;
   gap: 4px;

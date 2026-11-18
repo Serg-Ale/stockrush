@@ -1,8 +1,10 @@
-<h1>Painel de demonstração</h1>
-<p class="lead">
-  Dispara vários pedidos de uma unidade ao mesmo tempo sobre um produto. O estoque nunca fica negativo: só vendem tantos
-  pedidos quanto há unidades.
-</p>
+<header class="page-head">
+  <h1>Painel de demonstração</h1>
+  <p>
+    Dispara vários pedidos de uma unidade ao mesmo tempo sobre um produto. O estoque nunca fica negativo: só vendem
+    tantos pedidos quanto há unidades.
+  </p>
+</header>
 
 <mat-card appearance="outlined">
   <mat-card-content>
@@ -52,14 +54,14 @@
 </mat-card>
 
 @if (result(); as r) {
-  <mat-card appearance="outlined" class="result">
+  <mat-card appearance="outlined" class="result rise">
     <mat-card-header>
       <mat-card-title>Resultado</mat-card-title>
       <mat-card-subtitle>{{ r.buyers }} compradores, estoque inicial {{ r.stockBefore }}</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
       <app-result-chart [result]="r" />
-      <p class="summary" role="status">
+      <p class="summary num" role="status">
         {{ r.sold }} vendidos, {{ r.rejected }} rejeitados, estoque final {{ r.stockAfter }}.
       </p>
       @if (r.failed > 0) {
