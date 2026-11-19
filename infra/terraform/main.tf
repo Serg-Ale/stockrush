@@ -37,9 +37,10 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }
 
-resource "aws_security_group" "app" {
-  name_prefix = "${local.name}-"
-  description = "api and payment-service, reachable only from CloudFront. No SSH: use SSM Session Manager."
+# The CloudFront prefix list counts as ~55 rules every time it is used, and a group holds 60: one group per port.
+resource "aws_security_group" "api" {
+  name_prefix = "${local.name}-api-"
+  description = "api, reachable only from CloudFront. No SSH: use SSM Session Manager."
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -50,20 +51,30 @@ resource "aws_security_group" "app" {
     prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
   }
 
-  ingress {
-    description     = "payment-service /chaos, from CloudFront"
-    from_port       = 8081
-    to_port         = 8081
-    protocol        = "tcp"
-    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
-  }
-
   egress {
     description = "Image pulls, git and package downloads"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_security_group" "payment" {
+  name_prefix = "${local.name}-payment-"
+  description = "payment-service /chaos, reachable only from CloudFront."
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description     = "payment-service /chaos, from CloudFront"
+    from_port       = 8081
+    to_port         = 8081
+    protocol        = "tcp"
+    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
   }
 
   lifecycle {
@@ -120,7 +131,7 @@ resource "aws_instance" "app" {
   ami                    = data.aws_ssm_parameter.al2023.value
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.app.name
-  vpc_security_group_ids = [aws_security_group.app.id]
+  vpc_security_group_ids = [aws_security_group.api.id, aws_security_group.payment.id]
 
   metadata_options {
     http_tokens = "required"

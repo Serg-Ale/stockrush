@@ -5,9 +5,9 @@ variable "region" {
 }
 
 variable "instance_type" {
-  description = "t3.medium (2 vCPU, 4 GiB) runs the whole Compose stack with some headroom; the build also happens on it."
+  description = "t3.small (2 vCPU, 2 GiB) is the cheapest free-plan-eligible type that fits the stack, with swap and capped JVM heaps; the free plan refuses t3.medium. c7i-flex.large (4 GiB) has headroom but spends the credits about four times faster."
   type        = string
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 variable "domain_name" {

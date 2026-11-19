@@ -1,13 +1,18 @@
 # Added on top of compose.yaml on the AWS instance (see infra/terraform). The web container is not started there:
 # CloudFront routes the api paths to 8080 and /chaos to 8081, and only its address range can reach those ports.
+# The heaps are capped because the instance has 2 GiB (the free plan refuses larger types).
 services:
   api:
     ports:
       - "8080:8080"
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx320m -XX:+UseSerialGC
     restart: unless-stopped
   payment-service:
     ports:
       - "8081:8081"
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx256m -XX:+UseSerialGC
     restart: unless-stopped
   postgres:
     restart: unless-stopped
