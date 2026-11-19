@@ -21,9 +21,9 @@ A resposta, provada por testes: o estoque nunca é vendido além do que existe, 
 | **200 compradores, 50 unidades** | exatamente 50 pedidos criados, 150 rejeitados, estoque termina em 0 ([ADR 0005](docs/adr/0005-atomic-conditional-stock-decrement.md)) |
 | **Dois serviços** | `api` e `payment-service`, um banco para cada, conversando só pelo RabbitMQ ([ADR 0004](docs/adr/0004-two-services-with-one-database-each.md)) |
 | **Nenhum evento perdido** | outbox transacional, entrega at-least-once, consumidores idempotentes ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)) |
-| **Máquina de estados fechada** | `PENDING` só sai para `CONFIRMED` ou `CANCELLED`, e cancelar devolve o estoque exatamente uma vez ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); o job que expira pedidos sem resultado é o ticket #35 |
+| **Máquina de estados fechada** | `PENDING` só sai para `CONFIRMED` ou `CANCELLED`, e cancelar devolve o estoque exatamente uma vez ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); um job de expiração cancela pedidos que nunca recebem resultado |
 
-**Status: em desenvolvimento, ainda sem deploy.** Backend, app web, observabilidade, o stack do compose e o teste ponta a ponta estão prontos; Terraform, entrega contínua e o job de expiração de pedidos ainda faltam. O trabalho é acompanhado em issues do GitHub: a spec é a #1 e os tickets vão da #2 à #37. Os ADRs, o glossário e o código estão em inglês; as explicações abaixo estão em português.
+**Status: em desenvolvimento, ainda sem deploy.** Backend, app web, observabilidade, o stack do compose e o teste ponta a ponta estão prontos; Terraform e entrega contínua ainda faltam. O trabalho é acompanhado em issues do GitHub: a spec é a #1 e os tickets vão da #2 à #37. Os ADRs, o glossário e o código estão em inglês; as explicações abaixo estão em português.
 
 ## Veja funcionando
 
@@ -228,7 +228,7 @@ cd apps/web && npm run generate:api
 - **Criação idempotente.** O `Idempotency-Key` é obrigatório; repetir a chamada devolve o mesmo pedido e nunca reserva duas vezes.
 - **Outbox transacional para o RabbitMQ**, repassado com `FOR UPDATE SKIP LOCKED` ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)).
 - **Um segundo serviço de pagamentos**, controlado por tokens mágicos: `tok_approve`, `tok_decline`, `tok_flaky` (aprovado na 3ª tentativa), `tok_slow` e `tok_dead` (sempre esgota).
-- **Retentativas, fila de mensagens mortas e máquina de estados fechada.** Backoff de 1, 2 e 4 s em filas de espera; quando as tentativas acabam, o pedido é cancelado e o estoque devolvido uma vez. Um resultado tardio que contradiz um pedido final é descartado e contado.
+- **Retentativas, fila de mensagens mortas e máquina de estados fechada.** Backoff de 1, 2 e 4 s em filas de espera; quando as tentativas acabam, o pedido é cancelado e o estoque devolvido uma vez. Um job de expiração cancela pedidos `PENDING` com mais de 2 minutos (`EXPIRED`) como rede de segurança. Um resultado tardio que contradiz um pedido final é descartado e contado.
 - **Status em tempo real por SSE**, leitura só dos próprios pedidos, autenticação JWT com os papéis `CLIENTE` e `ADMIN`, limite de taxa e correlation id atravessando a fila.
 - **Controle de caos** (`/chaos`, só ADMIN): taxa de falha e latência do `tok_slow` mudam em tempo de execução, pelo painel de demonstração.
 - **Métricas de negócio** no Prometheus e um dashboard do Grafana: pedidos pendentes, confirmados e cancelados e profundidade da fila de mensagens mortas.
