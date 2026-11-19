@@ -1,6 +1,6 @@
 # 0009. The AWS demo on the free plan: what the first deploy found
 
-- Status: accepted (the deploy is not finished: see "Where it stands")
+- Status: accepted (the deploy waits for CloudFront verification: see "Where it stands")
 - Date: 2026-11-19
 
 ## Context
@@ -17,7 +17,7 @@ account was created (free plan, USD 100 of credit, no charge unless upgraded to 
 2. **Instance size.** The free plan refuses `t3.medium` (`The specified instance type is not eligible for Free Tier`).
    The accepted types (`aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true`) are
    `t3`/`t4g`/`t8i`/`t9g` micro and small, `c7i-flex.large` and `m7i-flex.large`. Decision: `t3.small` (2 GiB), the
-   cheapest that can hold the stack, with a 2 GiB swap file and capped JVM heaps in `compose.aws.yaml`. About
+   cheapest that holds the stack (confirmed: see "Where it stands"), with a 2 GiB swap file and capped JVM heaps in `compose.aws.yaml`. About
    US$ 21 a month, which the credit covers for roughly six months. `c7i-flex.large` (4 GiB) is the fallback and
    spends the credit about four times faster.
 3. **CloudFront needs a verified account.** A new account answers `Your account must be verified before you can add
@@ -33,7 +33,7 @@ account was created (free plan, USD 100 of credit, no charge unless upgraded to 
 ## Decision
 
 Keep the design (EC2 with Compose, S3 and CloudFront, ACM at the custom name) with the fixes above, which are in
-PR #83. For item 4, the instance must be able to read the code. Options, with the one chosen once the user decides:
+PR #83. For item 4, the instance must be able to read the code. Options (the first was chosen):
 
 - make the repository public, which matches the goal of exposing the portfolio projects and needs no secret;
 - keep it private and give the instance a read-only deploy key or token in Parameter Store (more moving parts);
@@ -42,9 +42,18 @@ PR #83. For item 4, the instance must be able to read the code. Options, with th
 
 ## Where it stands
 
-Created and running: IAM, SSM parameters, the S3 bucket, the CloudFront function and origin access control, a
-`t3.small` instance and its Elastic IP. Not created: the CloudFront distribution and the bucket policy (item 3).
-Not working: the stack on the instance (item 4). Costs so far are cents of credit. `terraform destroy` removes it all.
+Updated 2026-11-19, after the repository was made public and the instance was recreated.
+
+Running and checked from inside the instance (SSM, read-only): the whole Compose stack (api, payment-service,
+PostgreSQL, RabbitMQ, Prometheus, Grafana) on the `t3.small`, all containers healthy about three minutes after the
+build. `GET /products` answers 200, the api readiness is `UP`, `/chaos` without a token answers 401. Memory: 1177 MiB
+used of 1909, 529 MiB available, 38 MiB of the 2 GiB swap in use. Grafana is the largest container (about 400 MiB).
+
+Created: IAM, SSM parameters, the S3 bucket, the CloudFront function and origin access control, the instance and
+its Elastic IP. Not created: the CloudFront distribution and the bucket policy (item 3: the support case is open,
+and three `CreateDistributionWithTags` calls have been refused so far). Without the distribution nothing reaches the
+instance from outside, so there is still no public URL. Item 4 is solved by making the repository public.
+Costs so far are cents of credit. `terraform destroy` removes it all.
 
 ## Consequences
 
