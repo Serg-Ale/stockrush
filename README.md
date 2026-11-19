@@ -21,9 +21,9 @@ The answer, proved by tests: stock is never oversold, payments are asynchronous,
 | **200 buyers, 50 units** | exactly 50 orders created, 150 rejected, stock ends at 0 ([ADR 0005](docs/adr/0005-atomic-conditional-stock-decrement.md)) |
 | **Two services** | `api` and `payment-service`, one database each, talking only through RabbitMQ ([ADR 0004](docs/adr/0004-two-services-with-one-database-each.md)) |
 | **No lost events** | transactional outbox, at-least-once delivery, idempotent consumers ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)) |
-| **Closed state machine** | `PENDING` leaves only to `CONFIRMED` or `CANCELLED`, and cancelling returns the stock exactly once ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); the expiry job for orders that never get a result is ticket #35 |
+| **Closed state machine** | `PENDING` leaves only to `CONFIRMED` or `CANCELLED`, and cancelling returns the stock exactly once ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); an expiry job cancels orders that never get a result |
 
-**Status: in development, not deployed yet.** Backend, web app, observability, the compose stack and the end-to-end test are done; Terraform, continuous deployment and the order expiry job are still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
+**Status: in development, not deployed yet.** Backend, web app, observability, the compose stack and the end-to-end test are done; Terraform and continuous deployment are still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
 
 ## See it work
 
@@ -228,7 +228,7 @@ cd apps/web && npm run generate:api
 - **Idempotent creation.** `Idempotency-Key` is required; a replay returns the same order and never reserves twice.
 - **Transactional outbox to RabbitMQ**, relayed with `FOR UPDATE SKIP LOCKED` ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)).
 - **A second service for payments**, driven by magic tokens: `tok_approve`, `tok_decline`, `tok_flaky` (approved on the 3rd attempt), `tok_slow` and `tok_dead` (always exhausts).
-- **Retries, dead-letter queue and a closed state machine.** Backoff of 1, 2 and 4 s over wait queues; when attempts run out the order is cancelled and its stock returned once. A late result that contradicts a final order is discarded and counted.
+- **Retries, dead-letter queue and a closed state machine.** Backoff of 1, 2 and 4 s over wait queues; when attempts run out the order is cancelled and its stock returned once. An expiry job cancels `PENDING` orders older than 2 minutes (`EXPIRED`) as a safety net. A late result that contradicts a final order is discarded and counted.
 - **Real-time status over SSE**, own-orders-only reads, JWT auth with `CLIENTE` and `ADMIN` roles, rate limiting, and correlation ids across the queue.
 - **Chaos control** (`/chaos`, admin only): failure rate and `tok_slow` latency change at runtime, from the demo panel.
 - **Business metrics** in Prometheus and a Grafana dashboard: pending, confirmed and cancelled orders and dead-letter queue depth.
