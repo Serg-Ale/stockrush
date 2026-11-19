@@ -11,7 +11,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarables;
@@ -29,6 +28,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -53,6 +53,9 @@ class OrderCreatedListener {
 
 	static final String DEAD_LETTER_QUEUE = "order.created.dlq";
 
+	/** Why a message went straight to the DLQ without retries. */
+	static final String FAILURE_CAUSE_HEADER = "x-failure-cause";
+
 	private final JdbcClient jdbc;
 
 	private final RabbitTemplate rabbit;
@@ -68,6 +71,8 @@ class OrderCreatedListener {
 	private final int maxAttempts;
 
 	private final Counter retries;
+
+	private final Counter permanentFailures;
 
 	OrderCreatedListener(JdbcClient jdbc, RabbitTemplate rabbit, JsonMapper json, ChaosSettings chaos,
 			@Value("${app.payment.confirm-timeout:PT5S}") Duration confirmTimeout,
@@ -86,6 +91,9 @@ class OrderCreatedListener {
 		this.retries = Counter.builder("payment_retries_total")
 				.description("Payment attempts that failed temporarily and were parked for another try")
 				.register(meters);
+		this.permanentFailures = Counter.builder("payment_permanent_failures_total")
+				.description("order.created messages that can never succeed, sent straight to the dead-letter queue")
+				.register(meters);
 	}
 
 	@RabbitListener(queues = ORDER_CREATED)
@@ -103,12 +111,21 @@ class OrderCreatedListener {
 	}
 
 	private void process(Message message) {
+		try {
+			decideAndAnswer(message);
+		}
+		catch (PermanentFailure e) {
+			rejectPermanently(message, e);
+		}
+	}
+
+	private void decideAndAnswer(Message message) {
 		var event = parse(message);
 		var attempt = attempt(message);
 		var result = decide(event.orderId(), event.paymentToken(), attempt);
 		if (result != null) {
 			log.info("Payment for order {} decided on attempt {}: {}", event.orderId(), attempt, result);
-			publishResult(event.orderId(), result);
+			publishResult(event.orderId(), result, null);
 		}
 		else if (attempt < maxAttempts) {
 			log.info("Payment for order {} failed temporarily on attempt {}; retrying", event.orderId(), attempt);
@@ -118,6 +135,18 @@ class OrderCreatedListener {
 			log.warn("Payment for order {} exhausted {} attempts; dead-lettering", event.orderId(), attempt);
 			giveUp(message, event.orderId());
 		}
+	}
+
+	/** A message that can never succeed: no retry steps. Cancels the order when its id is readable (ADR 0001, 8). */
+	private void rejectPermanently(Message message, PermanentFailure failure) {
+		log.warn("Permanent failure, dead-lettering without retries (order {}): {}", failure.orderId, failure.getMessage());
+		permanentFailures.increment();
+		if (failure.orderId != null) {
+			publishResult(failure.orderId, "EXHAUSTED", "INVALID_MESSAGE");
+		}
+		var cause = failure.getMessage();
+		publish("", DEAD_LETTER_QUEUE, MessageBuilder.fromMessage(message)
+				.setHeader(FAILURE_CAUSE_HEADER, cause.length() > 200 ? cause.substring(0, 200) : cause).build());
 	}
 
 	/**
@@ -139,7 +168,7 @@ class OrderCreatedListener {
 	 * a crash in between redelivers the message and restarts the attempts (ADR 0001, consequences).
 	 */
 	private void giveUp(Message message, long orderId) {
-		publishResult(orderId, "EXHAUSTED");
+		publishResult(orderId, "EXHAUSTED", null);
 		publish("", DEAD_LETTER_QUEUE, MessageBuilder.fromMessage(message).build());
 	}
 
@@ -155,14 +184,23 @@ class OrderCreatedListener {
 	}
 
 	private OrderCreated parse(Message message) {
+		JsonNode tree;
 		try {
-			var tree = json.readTree(message.getBody());
-			return new OrderCreated(tree.required("orderId").asLong(),
-					tree.required("paymentToken").asString());
+			tree = json.readTree(message.getBody());
 		}
-		catch (JacksonException | IllegalArgumentException e) {
-			throw new AmqpRejectAndDontRequeueException("Invalid order.created message", e);
+		catch (JacksonException e) {
+			throw new PermanentFailure("Body is not valid JSON", null);
 		}
+		var id = tree.path("orderId");
+		if (!id.isIntegralNumber()) {
+			throw new PermanentFailure("orderId is missing or not a number", null);
+		}
+		var orderId = id.asLong();
+		var token = tree.path("paymentToken");
+		if (!token.isString()) {
+			throw new PermanentFailure("paymentToken is missing or not a string", orderId);
+		}
+		return new OrderCreated(orderId, token.asString());
 	}
 
 	/**
@@ -176,7 +214,7 @@ class OrderCreatedListener {
 			case "tok_flaky" -> attempt <= 2 ? null : "APPROVED";
 			case "tok_dead" -> null;
 			case "tok_slow" -> slowApproval();
-			default -> throw new AmqpRejectAndDontRequeueException("Unsupported payment token: " + token);
+			default -> throw new PermanentFailure("Unsupported payment token: " + token, orderId);
 		};
 		if (result == null || chaos.shouldFail()) {
 			return null;
@@ -205,7 +243,8 @@ class OrderCreatedListener {
 		return "APPROVED";
 	}
 
-	private void publishResult(long orderId, String result) {
+	/** {@code reason} refines an EXHAUSTED result for operators (INVALID_MESSAGE); null otherwise. */
+	private void publishResult(long orderId, String result, String reason) {
 		var properties = new MessageProperties();
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
 		properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
@@ -214,8 +253,8 @@ class OrderCreatedListener {
 			properties.setHeader(CORRELATION_ID_HEADER, correlationId);
 		}
 		Message message = MessageBuilder
-				.withBody(json.writeValueAsString(Map.of("orderId", orderId, "result", result))
-						.getBytes(StandardCharsets.UTF_8))
+				.withBody(json.writeValueAsString(reason == null ? Map.of("orderId", orderId, "result", result)
+						: Map.of("orderId", orderId, "result", result, "reason", reason)).getBytes(StandardCharsets.UTF_8))
 				.andProperties(properties)
 				.build();
 		publish(PAYMENTS_EXCHANGE, PAYMENT_RESULT, message);
@@ -230,6 +269,18 @@ class OrderCreatedListener {
 	}
 
 	private record OrderCreated(long orderId, String paymentToken) {
+	}
+
+	/** A message that no retry can fix. {@code orderId} is null when it could not be read. */
+	private static final class PermanentFailure extends RuntimeException {
+
+		private final Long orderId;
+
+		PermanentFailure(String cause, Long orderId) {
+			super(cause);
+			this.orderId = orderId;
+		}
+
 	}
 
 	@Bean

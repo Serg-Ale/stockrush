@@ -61,7 +61,10 @@ ends an order.
    without requeue and goes straight to the DLQ, with the cause in a header.
    If the `orderId` is readable, `payment-service` publishes `EXHAUSTED` with
    internal reason `INVALID_MESSAGE`. If not, there is no order to cancel and
-   only the DLQ and the metric record it.
+   only the DLQ and the metric record it. Implementation note (2026-11-19):
+   the cause is the `x-failure-cause` header of the dead-lettered copy, the
+   result carries `reason: INVALID_MESSAGE` for `api`, and
+   `payment_permanent_failures_total` counts these messages.
 9. **Expiry safety net.** The DLQ only covers messages that fail. If
    `payment-service` is down, the outbox is stuck or the broker is gone, the
    message just waits and the order stays `PENDING`. A scheduled job in `api`
