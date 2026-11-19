@@ -59,3 +59,4 @@ The free plan refuses `t3.medium` (`The specified instance type is not eligible 
 
 - **CloudFront:** a fresh account can answer `Your account must be verified before you can add new CloudFront resources`. It usually clears by itself once the account is fully activated (up to 24 hours); otherwise open an Account and billing case with Support and paste that message. `terraform apply` is safe to repeat: it picks up from what already exists.
 - **Instance type:** see above.
+- **A private repository:** the instance clones `repo_url` over HTTPS with no credentials, so the repository must be public (or you must add a deploy key). A private one fails at boot with `could not read Username`; look in `/var/log/stockrush-boot.log` through SSM. See ADR 0009.
