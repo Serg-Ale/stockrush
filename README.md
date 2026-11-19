@@ -191,6 +191,17 @@ cd e2e && npm ci && npx playwright install chromium && npx playwright test
 
 The `api-ci`, `payment-service-ci`, `web-ci` and `e2e-ci` workflows run all of this on every push.
 
+### Coverage
+
+JaCoCo runs with `verify` and writes `target/site/jacoco/index.html` in each service; CI prints the totals in the job summary and uploads the HTML report as an artifact. Measured on 2026-11-19 (JDK 25, full suites):
+
+| Service | Instructions | Branches | Lines |
+|---|---|---|---|
+| `api` | 96.1% | 81.5% | 94.3% |
+| `payment-service` | 95.3% | 84.4% | 94.6% |
+
+These numbers are a snapshot, not a gate: the current figures are in the latest CI run.
+
 ## Developing
 
 Run the services outside Docker with the api on port 8080 and `payment-service` on 8081. Both need `JWT_SECRET` (the same value, at least 32 bytes) and PostgreSQL and RabbitMQ configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`; the `api` creates the demo admin only if `DEMO_ADMIN_PASSWORD` is set. Then:
