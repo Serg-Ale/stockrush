@@ -34,7 +34,8 @@ class ProductCatalogTests {
 		for (JsonNode product : products) {
 			assertThat(product.path("name").asString()).isNotBlank();
 			assertThat(product.path("availableQuantity").isInt()).isTrue();
-			assertThat(product.path("availableQuantity").asInt()).isPositive();
+			// Sold-out products (DemoRaceTests drains the ones it creates, in the same database) are valid: only negative stock is not.
+			assertThat(product.path("availableQuantity").asInt()).isNotNegative();
 		}
 	}
 
