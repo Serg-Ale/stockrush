@@ -52,6 +52,8 @@ services:
       <<: *service-env
       DB_URL: jdbc:postgresql://postgres:5432/stockrush
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-demo-admin-123}
+      # Only nginx (apps/web/nginx.conf) reaches the api, and it sends one trustworthy address.
+      APP_RATE_LIMIT_TRUST_FORWARDED_FOR: "true"
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
