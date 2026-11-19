@@ -80,7 +80,7 @@ How the pieces fit is in [docs/architecture.md](docs/architecture.md): system co
 | `apps/api` | Orders, stock, auth, outbox publisher, payment result consumer, SSE (Spring Boot, PostgreSQL, Flyway) |
 | `apps/payment-service` | Simulated payment service with its own PostgreSQL (Spring Boot) |
 | `apps/web` | Web app (Angular), not started |
-| `infra` | Compose and Terraform, not started |
+| `compose.yaml`, `infra` | Compose stack, Prometheus and Grafana configuration (Terraform not started) |
 | `docs` | [Architecture](docs/architecture.md), [ADRs](docs/adr), [discovery](docs/discovery.md) (decisions, pt-BR), [backlog](docs/BACKLOG.md) (V2), [glossary](CONTEXT.md) |
 
 ## Running the tests
@@ -125,7 +125,13 @@ cd apps/web && npm ci && npm start
 
 ## Running the services
 
-Both services need `JWT_SECRET` (the same value, at least 32 bytes). The `api` creates the demonstration admin `admin@stockrush.demo` only if `DEMO_ADMIN_PASSWORD` is set. A one-command `docker compose up` is planned in ticket #30; until then you must provide PostgreSQL (one database per service) and RabbitMQ yourself, configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`.
+```bash
+docker compose up --build
+```
+
+One command brings up PostgreSQL (one database per service), RabbitMQ, `payment-service`, `api`, the web app, Prometheus and Grafana, each starting only after what it depends on is healthy. Open http://localhost:8000 and sign in as `admin@stockrush.demo` with the demo password `demo-admin-123`. The web container is the only entry point: it serves the app and routes the api paths and `/chaos` to the services. Other ports: Grafana on 3000 (anonymous viewer), Prometheus on 9090, RabbitMQ management on 15672.
+
+`JWT_SECRET` and `DEMO_ADMIN_PASSWORD` have local-only defaults in `compose.yaml`; override them with a `.env` file or the environment, and never reuse the defaults anywhere public. To run the services outside Docker, both need `JWT_SECRET` (the same value, at least 32 bytes) and PostgreSQL and RabbitMQ configured through the `DB_*` and `RABBITMQ_*` variables in each `application.properties`; the `api` creates the demo admin only if `DEMO_ADMIN_PASSWORD` is set.
 
 ## Stack
 
