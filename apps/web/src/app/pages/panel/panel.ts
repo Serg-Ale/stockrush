@@ -8,12 +8,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { CatalogService, Product } from '../../catalog/catalog.service';
 import { DemoRaceService, MAX_BUYERS, raceErrorMessage, RaceResult } from '../../demo/demo-race.service';
 import { PAYMENT_TOKENS } from '../../orders/orders.service';
+import { ChaosControl } from './chaos-control';
 import { ResultChart } from './result-chart';
 
 /** The demo panel: fire many simultaneous orders at one product and see how many sold, how many were refused. */
 @Component({
   selector: 'app-panel',
-  imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, ResultChart],
+  imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, ResultChart, ChaosControl],
   templateUrl: './panel.html',
   styleUrl: './panel.scss',
 })

@@ -1,0 +1,44 @@
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px 32px;
+  padding-top: 16px;
+}
+
+.control {
+  display: grid;
+  gap: 4px;
+}
+
+mat-slider {
+  width: 100%;
+  margin: 0;
+}
+
+.meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--mat-sys-surface-container-highest);
+  overflow: hidden;
+}
+
+.fill {
+  width: 0;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--mat-sys-error);
+}
+
+.error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--mat-sys-error);
+}
+
+.status {
+  margin: 16px 0 0;
+}
+
+mat-card-actions {
+  padding: 8px 16px 16px;
+}

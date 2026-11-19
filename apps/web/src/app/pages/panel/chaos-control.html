@@ -1,0 +1,35 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Controle de caos</mat-card-title>
+    <mat-card-subtitle>Muda o pagamento simulado em tempo de execução, sem reiniciar</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="apply()" id="chaos-form">
+      <div class="control">
+        <label id="failure-label">Taxa de falha: <span class="num">{{ form.controls.failurePercent.value }}%</span></label>
+        <mat-slider min="0" max="100" step="1" discrete>
+          <input matSliderThumb formControlName="failurePercent" aria-labelledby="failure-label" />
+        </mat-slider>
+        <div class="meter" aria-hidden="true"><div #failureFill class="fill"></div></div>
+      </div>
+      <div class="control">
+        <label id="latency-label">Latência de tok_slow: <span class="num">{{ form.controls.latencyMs.value }} ms</span></label>
+        <mat-slider min="0" [max]="maxLatency" step="100">
+          <input matSliderThumb formControlName="latencyMs" aria-labelledby="latency-label" />
+        </mat-slider>
+        <div class="meter" aria-hidden="true"><div #latencyFill class="fill"></div></div>
+      </div>
+      @if (error(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+    </form>
+    @if (applied(); as now) {
+      <p class="status num" role="status">Em vigor: {{ now.failurePercent }}% de falha, {{ now.latencyMs }} ms de latência.</p>
+    }
+  </mat-card-content>
+  <mat-card-actions>
+    <button matButton="filled" type="submit" form="chaos-form" [disabled]="busy()">
+      {{ busy() ? 'Aplicando…' : 'Aplicar' }}
+    </button>
+  </mat-card-actions>
+</mat-card>
