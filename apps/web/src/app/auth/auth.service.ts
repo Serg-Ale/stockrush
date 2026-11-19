@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { login, register } from '../api';
-import { isExpired } from './token';
+import { isExpired, tokenClaims } from './token';
 
 const STORAGE_KEY = 'stockrush.token';
 
@@ -13,6 +13,15 @@ export class AuthService {
   readonly isAuthenticated = computed(() => {
     const token = this._token();
     return token !== null && !isExpired(token);
+  });
+
+  /**
+   * Only decides what the screens show: the api enforces the role on every request, so a forged token would see an
+   * admin screen that answers 403.
+   */
+  readonly isAdmin = computed(() => {
+    const token = this._token();
+    return token !== null && !isExpired(token) && tokenClaims(token)?.['role'] === 'ADMIN';
   });
 
   /** Rejects with the HTTP error when the credentials are wrong. */

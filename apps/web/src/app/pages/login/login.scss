@@ -7,7 +7,26 @@
 }
 
 mat-card {
-  width: min(400px, 100%);
+  width: min(420px, 100%);
+  padding-top: 8px;
+}
+
+mat-card-header {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding-bottom: 4px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
 }
 
 form {
