@@ -124,6 +124,25 @@ class PaymentResultTests {
 	}
 
 	@Test
+	void exhaustedResultWithInvalidMessageReasonKeepsTheInternalReasonAndReturnsStockOnce() throws Exception {
+		var orderId = newOrder("PENDING");
+		var productId = jdbc.queryForObject("select product_id from orders where id = ?", Long.class, orderId);
+
+		result(orderId, "EXHAUSTED", "INVALID_MESSAGE");
+		result(orderId, "EXHAUSTED", "INVALID_MESSAGE");
+		var marker = newOrder("PENDING");
+		result(marker, "EXHAUSTED");
+
+		await(() -> status(marker).equals("CANCELLED"));
+		var reasons = jdbc.queryForMap(
+				"select cancellation_reason, internal_cancellation_reason from orders where id = ?", orderId);
+		assertThat(reasons).containsEntry("cancellation_reason", "PAYMENT_UNAVAILABLE")
+				.containsEntry("internal_cancellation_reason", "INVALID_MESSAGE");
+		assertThat(jdbc.queryForObject("select available_quantity from products where id = ?", Integer.class, productId))
+				.isEqualTo(5);
+	}
+
+	@Test
 	void lateContradictingResultIsDiscardedAndCountedButADuplicateIsNot() throws Exception {
 		var cancelled = newOrder("CANCELLED");
 		var duplicateTarget = newOrder("PENDING");
@@ -146,9 +165,14 @@ class PaymentResultTests {
 	}
 
 	private void result(long orderId, String result) throws Exception {
+		result(orderId, result, null);
+	}
+
+	private void result(long orderId, String result, String reason) throws Exception {
 		var properties = new MessageProperties();
 		properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
-		var body = json.writeValueAsBytes(Map.of("orderId", orderId, "result", result));
+		var body = json.writeValueAsBytes(reason == null ? Map.of("orderId", orderId, "result", result)
+				: Map.of("orderId", orderId, "result", result, "reason", reason));
 		rabbit.send("payments", "payment.result", MessageBuilder.withBody(body).andProperties(properties).build());
 	}
 

@@ -68,20 +68,58 @@ class PaymentResultTests {
 	}
 
 	@Test
-	void unsupportedTokenMissingTokenAndMalformedMessageProduceNoResult() throws Exception {
-		var unsupported = newOrderId();
-		orderCreated(unsupported, "tok_nope");
-		var missingToken = newOrderId();
-		send(Map.of("orderId", missingToken));
+	void unsupportedTokenGoesStraightToTheDlqWithItsCauseAndCancelsTheOrder() throws Exception {
+		admin.purgeQueue("order.created.dlq", true);
+		var retriesBefore = retries();
+		var orderId = newOrderId();
+
+		orderCreated(orderId, "tok_nope");
+
+		var result = resultNode(orderId);
+		assertThat(result.path("result").asString()).isEqualTo("EXHAUSTED");
+		assertThat(result.path("reason").asString()).isEqualTo("INVALID_MESSAGE");
+		var parked = rabbit.receive("order.created.dlq", 5_000);
+		assertThat(parked).isNotNull();
+		assertThat(parked.getMessageProperties().<String>getHeader("x-failure-cause"))
+				.contains("Unsupported payment token: tok_nope");
+		assertThat(parked.getMessageProperties().<Object>getHeader("x-last-death-queue")).isNull();
+		assertThat(retries()).isEqualTo(retriesBefore);
+		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, orderId))
+				.isZero();
+	}
+
+	@Test
+	void missingTokenWithAReadableOrderIdIsTreatedTheSameWay() throws Exception {
+		admin.purgeQueue("order.created.dlq", true);
+		var orderId = newOrderId();
+
+		send(Map.of("orderId", orderId));
+
+		assertThat(resultNode(orderId).path("reason").asString()).isEqualTo("INVALID_MESSAGE");
+		var parked = rabbit.receive("order.created.dlq", 5_000);
+		assertThat(parked).isNotNull();
+		assertThat(parked.getMessageProperties().<String>getHeader("x-failure-cause")).contains("paymentToken");
+	}
+
+	@Test
+	void payloadsWithoutAReadableOrderIdOnlyReachTheDlqAndTheMetric() throws Exception {
+		admin.purgeQueue("order.created.dlq", true);
+		var failuresBefore = permanentFailures();
+
 		rabbit.send("orders", "order.created", raw("not json".getBytes()));
+		send(Map.of("paymentToken", "tok_approve"));
 		var marker = newOrderId();
 		orderCreated(marker, "tok_approve");
 
 		assertThat(resultFor(marker)).isEqualTo("APPROVED");
-		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, unsupported))
-				.isZero();
-		assertThat(jdbc.queryForObject("select count(*) from payments where order_id = ?", Integer.class, missingToken))
-				.isZero();
+		await(() -> permanentFailures() == failuresBefore + 2);
+		var causes = new java.util.ArrayList<String>();
+		for (var i = 0; i < 2; i++) {
+			var parked = rabbit.receive("order.created.dlq", 5_000);
+			assertThat(parked).isNotNull();
+			causes.add(parked.getMessageProperties().getHeader("x-failure-cause"));
+		}
+		assertThat(causes).anyMatch(c -> c.contains("not valid JSON")).anyMatch(c -> c.contains("orderId"));
 	}
 
 	@Test
@@ -187,19 +225,31 @@ class PaymentResultTests {
 		return MessageBuilder.withBody(body).andProperties(properties).build();
 	}
 
-	/** Reads payment.result until the message for this order shows up; the queue is shared by all tests. */
 	private String resultFor(long orderId) throws Exception {
+		return resultNode(orderId).path("result").asString();
+	}
+
+	private double retries() {
+		return meters.get("payment_retries_total").counter().count();
+	}
+
+	private double permanentFailures() {
+		return meters.get("payment_permanent_failures_total").counter().count();
+	}
+
+	/** Reads payment.result until the message for this order shows up; the queue is shared by all tests. */
+	private tools.jackson.databind.JsonNode resultNode(long orderId) throws Exception {
 		var deadline = System.nanoTime() + 10_000_000_000L;
 		while (System.nanoTime() < deadline) {
 			var message = rabbit.receive("payment.result", 500);
 			if (message != null) {
 				var tree = json.readTree(message.getBody());
 				if (tree.path("orderId").asLong() == orderId) {
-					return tree.path("result").asString();
+					return tree;
 				}
 			}
 		}
-		return null;
+		throw new AssertionError("No payment.result for order " + orderId + " within 10 s");
 	}
 
 	private long newOrderId() {

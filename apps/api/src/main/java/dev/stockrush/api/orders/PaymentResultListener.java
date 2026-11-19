@@ -68,10 +68,12 @@ class PaymentResultListener {
 	private void apply(Message message) {
 		long orderId;
 		String result;
+		String reason;
 		try {
 			var tree = json.readTree(message.getBody());
 			orderId = tree.required("orderId").asLong();
 			result = tree.required("result").asString();
+			reason = tree.path("reason").asString("");
 		}
 		catch (JacksonException | IllegalArgumentException e) {
 			throw new AmqpRejectAndDontRequeueException("Invalid payment.result message", e);
@@ -79,7 +81,9 @@ class PaymentResultListener {
 		var applied = switch (result) {
 			case "APPROVED" -> transitions.confirm(orderId);
 			case "DECLINED" -> transitions.cancel(orderId, "PAYMENT_DECLINED", "DECLINED");
-			case "EXHAUSTED" -> transitions.cancel(orderId, "PAYMENT_UNAVAILABLE", "EXHAUSTED");
+			// payment-service refines EXHAUSTED to INVALID_MESSAGE for a message that could never be processed.
+			case "EXHAUSTED" -> transitions.cancel(orderId, "PAYMENT_UNAVAILABLE",
+					reason.equals("INVALID_MESSAGE") ? "INVALID_MESSAGE" : "EXHAUSTED");
 			default -> throw new AmqpRejectAndDontRequeueException("Unknown payment result: " + result);
 		};
 		if (applied) {
