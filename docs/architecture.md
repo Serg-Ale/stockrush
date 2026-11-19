@@ -1,8 +1,9 @@
 # Architecture
 
-What exists today: the `api` and `payment-service` backends, their two Postgres
-databases and RabbitMQ. The web app, observability and deployment are not drawn
-yet because they are not built. Decisions behind these pictures are in
+The backends, their databases and RabbitMQ are drawn here, with the order
+lifecycle and the data model. The container view (web, Prometheus, Grafana) and
+the full critical-flow sequence, with their sources, are in the
+[README](../README.md#architecture). Decisions behind these pictures are in
 [`docs/adr`](adr/); terms are defined in [`CONTEXT.md`](../CONTEXT.md).
 
 ## 1. System context
