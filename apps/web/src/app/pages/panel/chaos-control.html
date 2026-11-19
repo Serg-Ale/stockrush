@@ -1,0 +1,34 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Caos no pagamento</mat-card-title>
+    <mat-card-subtitle>Vale para os próximos pagamentos, sem reiniciar nada.</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="apply()" id="chaos-form">
+      <div class="slider">
+        <label for="failure">Falhas temporárias: <strong class="num">{{ form.controls.failurePercent.value }}%</strong></label>
+        <mat-slider min="0" max="100" step="5" discrete>
+          <input matSliderThumb id="failure" formControlName="failurePercent" />
+        </mat-slider>
+        <small>Parte das tentativas que falha como se o gateway estivesse fora. O sistema tenta de novo com recuo.</small>
+      </div>
+      <mat-form-field>
+        <mat-label>Latência do tok_slow (ms)</mat-label>
+        <input matInput type="number" min="0" [max]="maxLatency" step="100" formControlName="latencyMs" />
+        <mat-hint>De 0 a {{ maxLatency }}</mat-hint>
+        @if (form.controls.latencyMs.invalid) {
+          <mat-error>Informe um número inteiro de 0 a {{ maxLatency }}.</mat-error>
+        }
+      </mat-form-field>
+      @if (error(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+      @if (applied(); as message) {
+        <p class="applied" role="status">{{ message }}</p>
+      }
+    </form>
+  </mat-card-content>
+  <mat-card-actions>
+    <button matButton="filled" type="submit" form="chaos-form" [disabled]="busy() || form.invalid">Aplicar</button>
+  </mat-card-actions>
+</mat-card>
