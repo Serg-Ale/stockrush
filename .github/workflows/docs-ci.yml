@@ -1,0 +1,13 @@
+name: docs-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mermaid:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Mermaid blocks
+        run: scripts/validate-mermaid.sh
