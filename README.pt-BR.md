@@ -23,7 +23,7 @@ A resposta, provada por testes: o estoque nunca é vendido além do que existe, 
 | **Nenhum evento perdido** | outbox transacional, entrega at-least-once, consumidores idempotentes ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)) |
 | **Máquina de estados fechada** | `PENDING` só sai para `CONFIRMED` ou `CANCELLED`, e cancelar devolve o estoque exatamente uma vez ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); um job de expiração cancela pedidos que nunca recebem resultado |
 
-**Status: em desenvolvimento, ainda sem deploy.** Backend, app web, observabilidade, o stack do compose e o teste ponta a ponta estão prontos; Terraform e entrega contínua ainda faltam. O trabalho é acompanhado em issues do GitHub: a spec é a #1 e os tickets vão da #2 à #37. Os ADRs, o glossário e o código estão em inglês; as explicações abaixo estão em português.
+**Status: em desenvolvimento, ainda sem deploy.** Backend, app web, observabilidade, o stack do compose e o teste ponta a ponta estão prontos; o Terraform da AWS está escrito e validado mas ainda não foi aplicado, e a entrega contínua ainda falta. O trabalho é acompanhado em issues do GitHub: a spec é a #1 e os tickets vão da #2 à #37. Os ADRs, o glossário e o código estão em inglês; as explicações abaixo estão em português.
 
 ## Veja funcionando
 
@@ -149,7 +149,7 @@ sequenceDiagram
 | Contrato da API | OpenAPI do springdoc, cliente Angular gerado com `@hey-api/openapi-ts` |
 | Observabilidade | Micrometer, Prometheus, Grafana |
 | Testes | JUnit e Testcontainers, Vitest, Playwright |
-| Entrega | Docker Compose, GitHub Actions (Terraform e AWS: planejados) |
+| Entrega | Docker Compose, GitHub Actions, Terraform na AWS (EC2, S3, CloudFront, ACM) |
 
 As decisões por trás das escolhas estão em [docs/adr](docs/adr): [JWT próprio](docs/adr/0007-own-jwt-instead-of-an-identity-provider.md), [fronteiras de módulo e Spring Modulith](docs/adr/0008-module-boundaries-by-package-spring-modulith-deferred.md) e os ADRs citados acima.
 
@@ -241,7 +241,7 @@ cd apps/web && npm run generate:api
 | `apps/payment-service` | Serviço de pagamento simulado com banco próprio (Spring Boot) |
 | `apps/web` | App web em Angular e seu contêiner nginx |
 | `e2e` | Testes Playwright contra o stack do compose |
-| `compose.yaml`, `infra` | Stack do compose, configuração do Prometheus e do Grafana (Terraform ainda não começou) |
+| `compose.yaml`, `infra` | Stack do compose, configuração do Prometheus e do Grafana, [Terraform para a AWS](infra/terraform/README.md) |
 | `docs` | [Arquitetura](docs/architecture.md), [ADRs](docs/adr), [discovery](docs/discovery.md) (decisões, em pt-BR), [backlog](docs/BACKLOG.md) (V2), [glossário](CONTEXT.md) |
 
 ## Como o trabalho é organizado

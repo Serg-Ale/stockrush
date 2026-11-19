@@ -138,3 +138,33 @@ erDiagram
         timestamptz created_at
     }
 ```
+
+## 4. Deployment on AWS
+
+What `terraform apply` in [`infra/terraform`](../infra/terraform) creates. Visitors only ever talk to CloudFront;
+the instance admits only CloudFront's address range. The cost is about US$ 37 a month while it runs and zero after
+`terraform destroy`.
+
+```mermaid
+flowchart LR
+    visitor(["Visitor<br/>browser"])
+
+    subgraph aws["AWS account"]
+        cf["CloudFront<br/>HTTPS, ACM certificate"]
+        s3[("S3 bucket<br/>Angular build, private")]
+        subgraph ec2["EC2 t3.medium (Docker Compose)"]
+            api["api :8080"]
+            pay["payment-service :8081"]
+            infra["PostgreSQL, RabbitMQ,<br/>Prometheus, Grafana"]
+        end
+        ssm[("SSM Parameter Store<br/>JWT secret, admin password")]
+    end
+
+    visitor -->|"HTTPS: app and api paths"| cf
+    cf -->|"OAC: static files"| s3
+    cf -->|"HTTP: /auth /orders /products /me /admin /v3"| api
+    cf -->|"HTTP: /chaos"| pay
+    api --> infra
+    pay --> infra
+    ec2 -.->|"boot: read secrets"| ssm
+```

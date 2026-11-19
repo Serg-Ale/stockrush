@@ -1,0 +1,19 @@
+# Added on top of compose.yaml on the AWS instance (see infra/terraform). The web container is not started there:
+# CloudFront routes the api paths to 8080 and /chaos to 8081, and only its address range can reach those ports.
+services:
+  api:
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+  payment-service:
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+  postgres:
+    restart: unless-stopped
+  rabbitmq:
+    restart: unless-stopped
+  prometheus:
+    restart: unless-stopped
+  grafana:
+    restart: unless-stopped
