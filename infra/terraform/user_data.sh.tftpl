@@ -3,6 +3,13 @@
 set -euxo pipefail
 exec > >(tee /var/log/stockrush-boot.log) 2>&1
 
+# 2 GiB of RAM is tight for the Maven builds and the stack together: add swap first.
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 dnf install -y docker git
 systemctl enable --now docker
 

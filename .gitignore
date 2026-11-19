@@ -24,3 +24,6 @@ dist/
 *.tfstate.*
 .terraform/
 *.tfvars
+
+# Terraform plan files can hold secrets
+*.tfplan
