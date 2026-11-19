@@ -22,6 +22,10 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Fixed-window rate limit per client address, in memory (one api instance in v1). It runs before Spring Security, so
  * floods of unauthenticated requests are cut too. Over the limit the answer is 429 Problem Details with Retry-After.
+ * <p>
+ * The key is the connection address, unless {@code app.rate-limit.trust-forwarded-for} is set: then it is the last
+ * {@code X-Forwarded-For} entry, the one the trusted proxy in front of the api appended (earlier entries are
+ * client-supplied). Only enable it when nothing but that proxy can reach the api.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -38,11 +42,28 @@ class RateLimitFilter extends OncePerRequestFilter {
 
 	private final long windowMs;
 
+	private final boolean trustForwardedFor;
+
 	RateLimitFilter(JsonMapper json, @Value("${app.rate-limit.requests}") int limit,
-			@Value("${app.rate-limit.window}") Duration window) {
+			@Value("${app.rate-limit.window}") Duration window,
+			@Value("${app.rate-limit.trust-forwarded-for:false}") boolean trustForwardedFor) {
 		this.json = json;
 		this.limit = limit;
 		this.windowMs = window.toMillis();
+		this.trustForwardedFor = trustForwardedFor;
+	}
+
+	private String clientKey(HttpServletRequest request) {
+		if (trustForwardedFor) {
+			var forwarded = request.getHeader("X-Forwarded-For");
+			if (forwarded != null) {
+				var last = forwarded.substring(forwarded.lastIndexOf(',') + 1).trim();
+				if (!last.isEmpty()) {
+					return last;
+				}
+			}
+		}
+		return request.getRemoteAddr();
 	}
 
 	@Override
@@ -54,7 +75,7 @@ class RateLimitFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 		var now = System.currentTimeMillis();
-		var window = windows.merge(request.getRemoteAddr(), new Window(now, 1),
+		var window = windows.merge(clientKey(request), new Window(now, 1),
 				(old, fresh) -> now - old.start() >= windowMs ? fresh : new Window(old.start(), old.count() + 1));
 		if (window.count() <= limit) {
 			chain.doFilter(request, response);
