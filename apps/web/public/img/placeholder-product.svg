@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" role="img" aria-hidden="true">
+  <style>
+    .bg { fill: #e7efee; } .line { stroke: #7b8f8c; } .soft { fill: #cddbd9; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #243230; } .line { stroke: #8fa5a2; } .soft { fill: #31423f; } }
+  </style>
+  <rect class="bg" width="600" height="450"/>
+  <g fill="none" class="line" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M300 130 410 180v110l-110 50-110-50V180z" class="soft"/>
+    <path d="M190 180l110 50 110-50M300 230v110"/>
+  </g>
+</svg>

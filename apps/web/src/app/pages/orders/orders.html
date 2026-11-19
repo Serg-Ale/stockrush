@@ -19,7 +19,10 @@
   <mat-progress-bar mode="indeterminate" />
 }
 @if (rows().length === 0 && connection() === 'live') {
-  <p class="empty">Você ainda não fez nenhum pedido.</p>
+  <div class="empty">
+    <img src="/img/empty-orders.svg" alt="" width="320" height="200" />
+    <p>Você ainda não fez nenhum pedido.</p>
+  </div>
 }
 <ul class="orders rise">
   @for (row of rows(); track row.order.id) {

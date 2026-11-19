@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -8,6 +8,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Product } from '../../catalog/catalog.service';
 import { OrdersService, orderErrorMessage, PAYMENT_TOKENS, statusOf } from '../../orders/orders.service';
+
+const PLACEHOLDER = '/img/placeholder-product.svg';
 
 @Component({
   selector: 'app-product-card',
@@ -22,6 +24,11 @@ export class ProductCard {
   readonly product = input.required<Product>();
   /** Emitted after the stock may have changed, so the list reloads. */
   readonly stockChanged = output<void>();
+
+  protected readonly broken = signal(false);
+  /** The product's own picture, unless it has none or it failed to load: then the SVG placeholder. */
+  protected readonly hasPhoto = computed(() => !!this.product().imageUrl && !this.broken());
+  protected readonly photo = computed(() => (this.hasPhoto() ? this.product().imageUrl! : PLACEHOLDER));
 
   protected readonly tokens = PAYMENT_TOKENS;
   protected readonly busy = signal(false);

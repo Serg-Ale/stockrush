@@ -7,7 +7,10 @@
 } @else if (failed()) {
   <p class="error" role="alert">Não foi possível carregar o catálogo. Recarregue a página.</p>
 } @else if (products().length === 0) {
-  <p class="empty">Nenhum produto disponível no momento.</p>
+  <div class="empty">
+    <img src="/img/empty-catalog.svg" alt="" width="320" height="200" />
+    <p>Nenhum produto disponível no momento.</p>
+  </div>
 } @else {
   <div class="grid">
     @for (product of products(); track product.id) {

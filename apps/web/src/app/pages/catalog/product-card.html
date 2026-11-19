@@ -1,4 +1,14 @@
 <mat-card appearance="outlined">
+  <img
+    class="photo"
+    [src]="photo()"
+    [attr.alt]="hasPhoto() ? product().name : ''"
+    width="600"
+    height="450"
+    loading="lazy"
+    decoding="async"
+    (error)="broken.set(true)"
+  />
   <mat-card-header>
     <mat-card-title>{{ product().name }}</mat-card-title>
     <mat-card-subtitle>

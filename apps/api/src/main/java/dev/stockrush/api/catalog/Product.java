@@ -18,6 +18,9 @@ class Product {
 
 	private int availableQuantity;
 
+	/** A path inside the web app (the database refuses anything else), or null when there is no picture. */
+	private String imageUrl;
+
 	protected Product() {
 	}
 
@@ -31,6 +34,10 @@ class Product {
 
 	int getAvailableQuantity() {
 		return availableQuantity;
+	}
+
+	String getImageUrl() {
+		return imageUrl;
 	}
 
 }

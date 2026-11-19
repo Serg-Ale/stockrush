@@ -111,6 +111,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "imageUrl" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           }
