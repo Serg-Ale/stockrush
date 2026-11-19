@@ -28,7 +28,7 @@ that was never reserved.
    100 lines, keeps the mechanism visible in the code and in this repo's
    story, and avoids tying the delivery guarantee to a framework's table
    layout. Modulith is planned only to verify module boundaries; it is not a
-   dependency yet.
+   dependency yet (see [ADR 0008](0008-module-boundaries-by-package-spring-modulith-deferred.md)).
 
 ## Consequences
 

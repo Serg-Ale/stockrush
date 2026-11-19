@@ -21,3 +21,14 @@ jobs:
         run: ./mvnw -B -f ../payment-service/pom.xml package -DskipTests
       - name: Build and test
         run: ./mvnw -B verify
+      - name: Coverage summary
+        if: always()
+        run: |
+          f=target/site/jacoco/jacoco.csv
+          [ -f "$f" ] && awk -F, -v svc="api" 'NR>1 {mi+=$4; ci+=$5; mb+=$6; cb+=$7; ml+=$8; cl+=$9} END {printf "### %s coverage\n\ninstructions %.1f%% · branches %.1f%% · lines %.1f%%\n", svc, 100*ci/(mi+ci), 100*cb/(mb+cb), 100*cl/(ml+cl)}' "$f" >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-jacoco
+          path: apps/api/target/site/jacoco
+          if-no-files-found: ignore
