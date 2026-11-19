@@ -23,7 +23,7 @@ The answer, proved by tests: stock is never oversold, payments are asynchronous,
 | **No lost events** | transactional outbox, at-least-once delivery, idempotent consumers ([ADR 0002](docs/adr/0002-hand-written-transactional-outbox.md)) |
 | **Closed state machine** | `PENDING` leaves only to `CONFIRMED` or `CANCELLED`, and cancelling returns the stock exactly once ([ADR 0001](docs/adr/0001-payment-retry-and-dlq-policy.md)); an expiry job cancels orders that never get a result |
 
-**Status: in development, not deployed yet.** Backend, web app, observability, the compose stack and the end-to-end test are done; Terraform and continuous deployment are still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
+**Status: in development, not deployed yet.** Backend, web app, observability, the compose stack and the end-to-end test are done; the AWS Terraform is written and validated but not yet applied, and continuous deployment is still to come. Work is tracked as GitHub issues: the spec is #1 and the tickets are #2 to #37.
 
 ## See it work
 
@@ -149,7 +149,7 @@ sequenceDiagram
 | API contract | springdoc OpenAPI, Angular client generated with `@hey-api/openapi-ts` |
 | Observability | Micrometer, Prometheus, Grafana |
 | Tests | JUnit and Testcontainers, Vitest, Playwright |
-| Delivery | Docker Compose, GitHub Actions (Terraform and AWS: planned) |
+| Delivery | Docker Compose, GitHub Actions, Terraform on AWS (EC2, S3, CloudFront, ACM) |
 
 Decisions behind these choices are in [docs/adr](docs/adr): [own JWT](docs/adr/0007-own-jwt-instead-of-an-identity-provider.md), [module boundaries and Spring Modulith](docs/adr/0008-module-boundaries-by-package-spring-modulith-deferred.md), and the ones linked above.
 
@@ -241,7 +241,7 @@ cd apps/web && npm run generate:api
 | `apps/payment-service` | Simulated payment service with its own database (Spring Boot) |
 | `apps/web` | Angular web app and its nginx container |
 | `e2e` | Playwright tests against the compose stack |
-| `compose.yaml`, `infra` | Compose stack, Prometheus and Grafana configuration (Terraform not started) |
+| `compose.yaml`, `infra` | Compose stack, Prometheus and Grafana configuration, [Terraform for AWS](infra/terraform/README.md) |
 | `docs` | [Architecture](docs/architecture.md), [ADRs](docs/adr), [discovery](docs/discovery.md) (decisions, pt-BR), [backlog](docs/BACKLOG.md) (V2), [glossary](CONTEXT.md) |
 
 ## How the work is organized

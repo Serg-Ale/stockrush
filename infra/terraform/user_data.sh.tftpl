@@ -1,0 +1,26 @@
+#!/bin/bash
+# Runs once, as root, on first boot. Output goes to /var/log/stockrush-boot.log.
+set -euxo pipefail
+exec > >(tee /var/log/stockrush-boot.log) 2>&1
+
+dnf install -y docker git
+systemctl enable --now docker
+
+# The Compose plugin is not in the Amazon Linux repositories.
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+git clone --depth 1 --branch "${repo_ref}" "${repo_url}" /opt/stockrush
+cd /opt/stockrush
+
+# Secrets come from Parameter Store, never from this script.
+umask 077
+{
+  echo "JWT_SECRET=$(aws ssm get-parameter --region ${region} --name /stockrush/jwt-secret --with-decryption --query Parameter.Value --output text)"
+  echo "DEMO_ADMIN_PASSWORD=$(aws ssm get-parameter --region ${region} --name /stockrush/demo-admin-password --with-decryption --query Parameter.Value --output text)"
+} > .env
+
+# The web container is not started: S3 and CloudFront serve the app and route the api paths here.
+docker compose -f compose.yaml -f compose.aws.yaml up -d --build api payment-service prometheus grafana
