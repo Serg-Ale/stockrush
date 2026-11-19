@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-hidden="true">
+  <style>
+    .line { stroke: #7b8f8c; } .soft { fill: #d8e6e3; } .accent { fill: #0b6b64; }
+    @media (prefers-color-scheme: dark) { .line { stroke: #8fa5a2; } .soft { fill: #2b3b39; } .accent { fill: #6fd6cc; } }
+  </style>
+  <ellipse cx="160" cy="176" rx="104" ry="10" class="soft"/>
+  <g fill="none" class="line" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M160 40 244 78v64l-84 38-84-38V78z" class="soft"/>
+    <path d="M76 78l84 38 84-38M160 116v64"/>
+  </g>
+  <circle cx="232" cy="52" r="10" class="accent"/>
+  <circle cx="92" cy="40" r="5" class="accent"/>
+</svg>

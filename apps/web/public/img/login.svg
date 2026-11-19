@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" role="img" aria-hidden="true">
+  <style>
+    .line { stroke: #7b8f8c; } .soft { fill: #d8e6e3; } .accent { fill: #0b6b64; }
+    @media (prefers-color-scheme: dark) { .line { stroke: #8fa5a2; } .soft { fill: #2b3b39; } .accent { fill: #6fd6cc; } }
+  </style>
+  <g fill="none" class="line" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M64 46 100 62v36L64 114 28 98V62z" class="soft"/>
+    <path d="M160 26 204 46v48l-44 20-44-20V46z" class="soft"/>
+    <path d="M256 46 292 62v36l-36 16-36-16V62z" class="soft"/>
+  </g>
+  <circle cx="160" cy="68" r="9" class="accent"/>
+</svg>

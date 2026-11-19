@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { gsap } from 'gsap';
 import { Reveal } from './reveal';
 
 @Component({
@@ -13,19 +14,29 @@ function reduceMotion(reduce: boolean) {
 }
 
 describe('Reveal', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
-  it('hides the children to animate them in when motion is allowed', () => {
+  it('asks GSAP to bring the children in from hidden when motion is allowed', () => {
     reduceMotion(false);
+    const from = vi.spyOn(gsap, 'from');
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('p').style.opacity).toBe('0');
+
+    expect(from).toHaveBeenCalledTimes(1);
+    const [targets, vars] = from.mock.calls[0];
+    expect(Array.from(targets as ArrayLike<Element>)).toEqual(Array.from(fixture.nativeElement.querySelector('div').children));
+    expect(vars).toEqual(expect.objectContaining({ opacity: 0 }));
   });
 
   it('leaves the content untouched with reduced motion', () => {
     reduceMotion(true);
+    const from = vi.spyOn(gsap, 'from');
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
+    expect(from).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('p').getAttribute('style')).toBeNull();
   });
 });

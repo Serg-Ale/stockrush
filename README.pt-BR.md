@@ -248,6 +248,10 @@ cd apps/web && npm run generate:api
 
 As decisões são escritas antes e depois do código: uma spec (#1), tickets tracer-bullet com critérios de aceite e bloqueios, um pull request por ticket, e ADRs que citam a evidência (por exemplo o resultado do teste 200x50). Os termos usados no código e nos documentos estão definidos em [CONTEXT.md](CONTEXT.md).
 
+## Imagens e licenças
+
+A licença MIT cobre o código. As quatro fotos de produto têm licenças próprias (todas CC0 ou domínio público) e estão creditadas em [CREDITS.md](CREDITS.md); as ilustrações em SVG são originais e MIT.
+
 ## Licença
 
 [MIT](LICENSE)

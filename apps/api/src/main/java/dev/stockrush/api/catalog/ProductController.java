@@ -18,11 +18,12 @@ class ProductController {
 	@GetMapping("/products")
 	List<ProductResponse> list() {
 		return products.findAllByOrderByNameAsc().stream()
-				.map(p -> new ProductResponse(p.getId(), p.getName(), p.getAvailableQuantity()))
+				.map(p -> new ProductResponse(p.getId(), p.getName(), p.getAvailableQuantity(), p.getImageUrl()))
 				.toList();
 	}
 
-	record ProductResponse(Long id, String name, int availableQuantity) {
+	/** {@code imageUrl} is a path relative to the web app, or null when the product has no picture. */
+	record ProductResponse(Long id, String name, int availableQuantity, String imageUrl) {
 	}
 
 }

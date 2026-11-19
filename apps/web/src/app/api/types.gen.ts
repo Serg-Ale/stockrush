@@ -40,6 +40,7 @@ export type OrderResponse = {
 export type ProductResponse = {
     availableQuantity?: number;
     id?: number;
+    imageUrl?: string;
     name?: string;
 };
 
